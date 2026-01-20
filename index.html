@@ -1,0 +1,317 @@
+﻿<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Tavo Store | Gestión Total</title>
+    
+    <script src="https://cdn.tailwindcss.com"></script>
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;700;900&display=swap');
+        body { 
+            font-family: 'Inter', sans-serif; 
+            background-color: #09090b;
+            color: #ffffff;
+            margin: 0;
+            overflow-x: hidden;
+        }
+        .glass-card {
+            background: rgba(24, 24, 27, 0.6);
+            backdrop-filter: blur(12px);
+            border: 1px solid rgba(255, 255, 255, 0.08);
+            transition: all 0.3s ease;
+        }
+        .admin-input {
+            background: rgba(0, 0, 0, 0.4);
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            border-radius: 0.75rem;
+            padding: 0.6rem 1rem;
+            color: white;
+            width: 100%;
+            outline: none;
+        }
+        .admin-input:focus { border-color: #3b82f6; }
+        .badge-stock { background: rgba(34, 197, 94, 0.15); color: #4ade80; border: 1px solid rgba(34, 197, 94, 0.2); }
+        .badge-order { background: rgba(249, 115, 22, 0.15); color: #fb923c; border: 1px solid rgba(249, 115, 22, 0.2); }
+        
+        /* Animación de carga suave */
+        @keyframes fadeIn {
+            from { opacity: 0; transform: translateY(10px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+        .fade-in { animation: fadeIn 0.6s ease forwards; }
+    </style>
+</head>
+<body>
+    <div id="root"></div>
+
+    <script type="module">
+        import { initializeApp } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-app.js";
+        import { getAuth, signInAnonymously, signInWithCustomToken, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-auth.js";
+        import { getFirestore, doc, setDoc, onSnapshot, updateDoc, collection } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
+
+        // Configuración automática del entorno
+        const firebaseConfig = JSON.parse(__firebase_config);
+        const appId = typeof __app_id !== 'undefined' ? __app_id : 'default-app-id';
+        
+        const app = initializeApp(firebaseConfig);
+        const auth = getAuth(app);
+        const db = getFirestore(app);
+
+        // Exponer al objeto global para que React lo use
+        window.fb = { db, auth, appId, doc, setDoc, onSnapshot, updateDoc, collection, signInAnonymously, signInWithCustomToken, onAuthStateChanged };
+    </script>
+
+    <script src="https://unpkg.com/react@18/umd/react.production.min.js"></script>
+    <script src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js"></script>
+    <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
+
+    <script type="text/babel">
+        const { useState, useEffect } = React;
+
+        const App = () => {
+            const [user, setUser] = useState(null);
+            const [view, setView] = useState('store');
+            const [isLogged, setIsLogged] = useState(false);
+            const [data, setData] = useState(null);
+            const [loading, setLoading] = useState(true);
+
+            // Manejo de autenticación obligatoria para Firestore
+            useEffect(() => {
+                const initAuth = async () => {
+                    try {
+                        if (typeof __initial_auth_token !== 'undefined' && __initial_auth_token) {
+                            await window.fb.signInWithCustomToken(window.fb.auth, __initial_auth_token);
+                        } else {
+                            await window.fb.signInAnonymously(window.fb.auth);
+                        }
+                    } catch (e) {
+                        console.error("Error Autenticando:", e);
+                    }
+                };
+                initAuth();
+                const unsubscribe = window.fb.onAuthStateChanged(window.fb.auth, setUser);
+                return () => unsubscribe();
+            }, []);
+
+            // Escuchar cambios en tiempo real desde la nube
+            useEffect(() => {
+                if (!user) return;
+
+                // Segmentos pares: artifacts/ID/public/data/settings/main (6 segmentos)
+                const docRef = window.fb.doc(window.fb.db, 'artifacts', window.fb.appId, 'public', 'data', 'settings', 'main');
+
+                const unsubscribe = window.fb.onSnapshot(docRef, (docSnap) => {
+                    if (docSnap.exists()) {
+                        setData(docSnap.data());
+                    } else {
+                        // Crear documento inicial si la base de datos está virgen
+                        const initialData = {
+                            rate: 62.00,
+                            settings: { 
+                                logo: "TAVO STORE", 
+                                whatsapp: "584249649769", 
+                                banner: "https://images.unsplash.com/photo-1441986300917-64674bd600d8?q=80&w=2000" 
+                            },
+                            products: [
+                                { id: 1, name: "Smartwatch Ultra Gen 2", price: 45, img: "https://images.unsplash.com/photo-1544117518-29622149c938?q=80&w=800", category: "Relojes", status: "stock" },
+                                { id: 2, name: "Audífonos Inalámbricos Pro", price: 25, img: "https://images.unsplash.com/photo-1505740420928-5e560c06d30e?q=80&w=800", category: "Audio", status: "order" }
+                            ]
+                        };
+                        window.fb.setDoc(docRef, initialData);
+                    }
+                    setLoading(false);
+                }, (error) => {
+                    console.error("Error de Firestore:", error);
+                    setLoading(false);
+                });
+
+                return () => unsubscribe();
+            }, [user]);
+
+            const updateCloudData = async (newData) => {
+                if (!user) return;
+                const docRef = window.fb.doc(window.fb.db, 'artifacts', window.fb.appId, 'public', 'data', 'settings', 'main');
+                try {
+                    await window.fb.updateDoc(docRef, newData);
+                } catch (e) {
+                    console.error("Error al guardar:", e);
+                }
+            };
+
+            // Prevención de error: "Cannot read properties of null"
+            if (loading || !data) {
+                return (
+                    <div className="h-screen flex items-center justify-center bg-black">
+                        <div className="text-center">
+                            <div className="w-12 h-12 border-4 border-blue-600 border-t-transparent rounded-full animate-spin mx-auto mb-6"></div>
+                            <p className="text-[10px] font-black uppercase tracking-[0.3em] text-blue-500 animate-pulse">Sincronizando con la Nube...</p>
+                        </div>
+                    </div>
+                );
+            }
+
+            const formatCurrency = (price) => (price * (data.rate || 1)).toLocaleString('es-VE', { minimumFractionDigits: 2 });
+
+            const StoreLayout = () => (
+                <div className="fade-in">
+                    <header className="relative h-[60vh] flex items-center justify-center text-center overflow-hidden">
+                        <img src={data.settings?.banner} className="absolute inset-0 w-full h-full object-cover opacity-50" alt="Hero" />
+                        <div className="absolute inset-0 bg-gradient-to-t from-[#09090b] via-transparent"></div>
+                        <div className="relative z-10 px-6">
+                            <h1 className="text-6xl md:text-9xl font-black italic uppercase tracking-tighter drop-shadow-2xl">{data.settings?.logo}</h1>
+                            <div className="mt-8 bg-blue-600/10 backdrop-blur-md border border-blue-500/20 px-6 py-2 rounded-full inline-block">
+                                <span className="text-[10px] font-black text-blue-400 uppercase tracking-widest">Tasa del día: Bs. {data.rate?.toFixed(2)}</span>
+                            </div>
+                        </div>
+                    </header>
+
+                    <main className="max-w-7xl mx-auto px-6 grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8 -mt-16 relative z-20 pb-20">
+                        {data.products?.map(p => (
+                            <div key={p.id} className="glass-card rounded-[2.5rem] overflow-hidden group hover:border-blue-500/30">
+                                <div className="aspect-[4/5] relative">
+                                    <img src={p.img || 'https://placehold.co/600x800?text=Sin+Imagen'} className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-700" alt={p.name} />
+                                    <div className={`absolute top-6 left-6 px-4 py-1.5 rounded-full text-[9px] font-black uppercase tracking-widest ${p.status === 'stock' ? 'badge-stock' : 'badge-order'}`}>
+                                        {p.status === 'stock' ? 'Disponible' : 'Bajo Pedido'}
+                                    </div>
+                                </div>
+                                <div className="p-8">
+                                    <span className="text-[9px] font-black uppercase text-blue-500 tracking-widest">{p.category}</span>
+                                    <h3 className="text-2xl font-bold mt-2 mb-6 h-14 overflow-hidden">{p.name}</h3>
+                                    <div className="flex justify-between items-end">
+                                        <div>
+                                            <p className="text-3xl font-black italic text-white">${p.price}</p>
+                                            <p className="text-[10px] text-zinc-500 font-bold uppercase">Bs. {formatCurrency(p.price)}</p>
+                                        </div>
+                                        <button 
+                                            onClick={() => window.open(`https://wa.me/${data.settings?.whatsapp}?text=Hola! Quiero comprar: ${p.name}`)}
+                                            className="bg-white text-black px-6 py-3 rounded-xl font-black text-[10px] uppercase hover:bg-blue-600 hover:text-white transition-all shadow-xl shadow-black/50"
+                                        >
+                                            Comprar
+                                        </button>
+                                    </div>
+                                </div>
+                            </div>
+                        ))}
+                    </main>
+                </div>
+            );
+
+            const AdminLayout = () => {
+                const [pass, setPass] = useState("");
+                if (!isLogged) return (
+                    <div className="h-screen flex items-center justify-center px-6">
+                        <div className="glass-card p-12 rounded-[3rem] w-full max-w-sm text-center">
+                            <h2 className="font-black mb-8 uppercase tracking-widest text-xs text-blue-500">Acceso Restringido</h2>
+                            <input type="password" placeholder="Contraseña Admin" className="admin-input mb-4 text-center" onChange={e => setPass(e.target.value)} onKeyDown={e => e.key === 'Enter' && pass === "tavo2026" && setIsLogged(true)} />
+                            <button onClick={() => pass === "tavo2026" ? setIsLogged(true) : alert("Clave Incorrecta")} className="w-full bg-blue-600 py-4 rounded-xl font-black text-[10px] uppercase tracking-widest hover:bg-blue-500 transition-colors">Entrar al Sistema</button>
+                        </div>
+                    </div>
+                );
+
+                return (
+                    <div className="max-w-6xl mx-auto px-6 py-32 fade-in">
+                        <div className="flex justify-between items-center mb-12">
+                            <h2 className="text-3xl font-black italic uppercase">Configuración <span className="text-blue-500">Global</span></h2>
+                            <button onClick={() => {
+                                const newP = { id: Date.now(), name: "Nuevo Producto", price: 0, img: "", status: "stock", category: "Categoría" };
+                                updateCloudData({ products: [newP, ...data.products] });
+                            }} className="bg-blue-600 px-8 py-4 rounded-2xl font-black text-[10px] uppercase shadow-lg shadow-blue-900/20">Agregar Producto</button>
+                        </div>
+
+                        <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-16">
+                            <div className="glass-card p-6 rounded-3xl">
+                                <label className="text-[9px] uppercase font-black text-zinc-500 mb-3 block">Tasa de Cambio (Bs.)</label>
+                                <input type="number" step="0.01" className="admin-input" value={data.rate} onChange={e => updateCloudData({ rate: parseFloat(e.target.value) || 0 })} />
+                            </div>
+                            <div className="glass-card p-6 rounded-3xl">
+                                <label className="text-[9px] uppercase font-black text-zinc-500 mb-3 block">Teléfono WhatsApp</label>
+                                <input className="admin-input" value={data.settings?.whatsapp} onChange={e => updateCloudData({ 'settings.whatsapp': e.target.value })} />
+                            </div>
+                            <div className="glass-card p-6 rounded-3xl">
+                                <label className="text-[9px] uppercase font-black text-zinc-500 mb-3 block">Nombre de la Tienda</label>
+                                <input className="admin-input" value={data.settings?.logo} onChange={e => updateCloudData({ 'settings.logo': e.target.value })} />
+                            </div>
+                        </div>
+
+                        <div className="space-y-4">
+                            <h3 className="text-xs font-black uppercase tracking-[0.3em] text-zinc-500 mb-6">Inventario</h3>
+                            {data.products?.map((p, i) => (
+                                <div key={p.id} className="glass-card p-6 rounded-3xl flex flex-wrap gap-6 items-center border-white/5 group">
+                                    <div className="w-16 h-16 rounded-2xl bg-zinc-900 overflow-hidden shrink-0 border border-white/10">
+                                        <img src={p.img} className="w-full h-full object-cover" onError={(e) => e.target.src='https://placehold.co/100'} />
+                                    </div>
+                                    <div className="flex-1 min-w-[200px]">
+                                        <input className="admin-input mb-2 font-bold" placeholder="Nombre del producto" value={p.name} onChange={e => {
+                                            const copy = [...data.products];
+                                            copy[i].name = e.target.value;
+                                            updateCloudData({ products: copy });
+                                        }} />
+                                        <input className="text-[10px] bg-transparent border-none text-zinc-500 outline-none w-full" placeholder="URL de la imagen" value={p.img} onChange={e => {
+                                            const copy = [...data.products];
+                                            copy[i].img = e.target.value;
+                                            updateCloudData({ products: copy });
+                                        }} />
+                                    </div>
+                                    <div className="w-32">
+                                        <label className="text-[8px] font-black text-zinc-600 block mb-1 uppercase">Precio $</label>
+                                        <input type="number" className="admin-input" value={p.price} onChange={e => {
+                                            const copy = [...data.products];
+                                            copy[i].price = parseFloat(e.target.value) || 0;
+                                            updateCloudData({ products: copy });
+                                        }} />
+                                    </div>
+                                    <div className="w-40">
+                                        <label className="text-[8px] font-black text-zinc-600 block mb-1 uppercase">Estado</label>
+                                        <select className="admin-input" value={p.status} onChange={e => {
+                                            const copy = [...data.products];
+                                            copy[i].status = e.target.value;
+                                            updateCloudData({ products: copy });
+                                        }}>
+                                            <option value="stock">En Stock</option>
+                                            <option value="order">Bajo Pedido</option>
+                                        </select>
+                                    </div>
+                                    <button 
+                                        onClick={() => { if(confirm("¿Eliminar producto?")) updateCloudData({ products: data.products.filter(item => item.id !== p.id) }); }}
+                                        className="bg-red-500/10 text-red-500 hover:bg-red-500 hover:text-white px-5 py-3 rounded-2xl text-[9px] font-black transition-all"
+                                    >
+                                        BORRAR
+                                    </button>
+                                </div>
+                            ))}
+                        </div>
+                    </div>
+                );
+            };
+
+            return (
+                <div className="min-h-screen">
+                    <nav className="fixed top-0 w-full z-[100] bg-zinc-950/80 backdrop-blur-xl px-10 py-6 flex justify-between items-center border-b border-white/5">
+                        <span className="font-black italic text-2xl uppercase tracking-tighter cursor-pointer" onClick={() => setView('store')}>
+                            {data.settings?.logo}
+                        </span>
+                        <div className="flex gap-4">
+                            <button 
+                                onClick={() => setView(view === 'admin' ? 'store' : 'admin')} 
+                                className="text-[9px] font-black uppercase tracking-widest text-zinc-400 hover:text-white px-6 py-2 border border-white/10 rounded-full bg-white/5"
+                            >
+                                {view === 'admin' ? 'Salir de Edición' : 'Panel de Control'}
+                            </button>
+                        </div>
+                    </nav>
+
+                    {view === 'store' ? <StoreLayout /> : <AdminLayout />}
+
+                    <footer className="py-20 text-center opacity-30 text-[9px] font-black uppercase tracking-[0.5em] border-t border-white/5 mx-10">
+                        © 2026 {data.settings?.logo} • Cloud Management System
+                    </footer>
+                </div>
+            );
+        };
+
+        const root = ReactDOM.createRoot(document.getElementById('root'));
+        root.render(<App />);
+    </script>
+</body>
+</html>
