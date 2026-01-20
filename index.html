@@ -48,19 +48,27 @@
     <!-- Firebase SDKs -->
     <script type="module">
         import { initializeApp } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-app.js";
-        import { getAuth, signInAnonymously, signInWithCustomToken, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-auth.js";
+        import { getAuth, signInAnonymously, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-auth.js";
         import { getFirestore, doc, setDoc, onSnapshot, updateDoc, collection } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
 
-        // Configuración de Firebase integrada
-        const firebaseConfig = JSON.parse(__firebase_config);
-        const appId = typeof __app_id !== 'undefined' ? __app_id : 'tavo-store-pro';
+        // CONFIGURACIÓN REAL DE TAVOSTORE
+        const firebaseConfig = {
+            apiKey: "AIzaSyBQwVbcCO2GHCHKL5EoEOG9Jo3ZAXGAy2o",
+            authDomain: "tavostore-4dedf.firebaseapp.com",
+            projectId: "tavostore-4dedf",
+            storageBucket: "tavostore-4dedf.firebasestorage.app",
+            messagingSenderId: "265905383641",
+            appId: "1:265905383641:web:92499c7fe2620f988f36c8",
+            measurementId: "G-QW93LN7FCS"
+        };
+
+        const appId = "tavostore-main-app";
         
         const app = initializeApp(firebaseConfig);
         const auth = getAuth(app);
         const db = getFirestore(app);
 
-        // Exponer globalmente para React
-        window.fb = { db, auth, appId, doc, setDoc, onSnapshot, updateDoc, collection, signInAnonymously, signInWithCustomToken, onAuthStateChanged };
+        window.fb = { db, auth, appId, doc, setDoc, onSnapshot, updateDoc, collection, signInAnonymously, onAuthStateChanged };
     </script>
 
     <!-- React & Babel -->
@@ -78,32 +86,30 @@
             const [data, setData] = useState(null);
             const [loading, setLoading] = useState(true);
 
-            // 1. Autenticación inicial
+            // 1. Iniciar Sesión
             useEffect(() => {
                 const initAuth = async () => {
                     try {
-                        if (typeof __initial_auth_token !== 'undefined' && __initial_auth_token) {
-                            await window.fb.signInWithCustomToken(window.fb.auth, __initial_auth_token);
-                        } else {
-                            await window.fb.signInAnonymously(window.fb.auth);
-                        }
-                    } catch (e) { console.error("Auth Error", e); }
+                        await window.fb.signInAnonymously(window.fb.auth);
+                    } catch (e) { console.error("Error de Auth:", e); }
                 };
                 initAuth();
                 const unsubscribe = window.fb.onAuthStateChanged(window.fb.auth, setUser);
                 return () => unsubscribe();
             }, []);
 
-            // 2. Escuchar Datos de la Nube (Cloud Sync)
+            // 2. Sincronizar con la Nube (Firestore)
             useEffect(() => {
                 if (!user) return;
+                
+                // Documento de ajustes principales
                 const docRef = window.fb.doc(window.fb.db, 'artifacts', window.fb.appId, 'public', 'data', 'settings', 'main');
 
                 const unsubscribe = window.fb.onSnapshot(docRef, (docSnap) => {
                     if (docSnap.exists()) {
                         setData(docSnap.data());
                     } else {
-                        // Datos por defecto si es la primera vez
+                        // Crear datos iniciales si la nube está vacía
                         const initialData = {
                             rate: 62.00,
                             settings: { 
@@ -112,19 +118,18 @@
                                 banner: "https://images.unsplash.com/photo-1441986300917-64674bd600d8?q=80&w=2000" 
                             },
                             products: [
-                                { id: 1, name: "Producto de Ejemplo", price: 10, img: "https://images.unsplash.com/photo-1523275335684-37898b6baf30?q=80&w=800", category: "General", status: "stock" }
+                                { id: 1, name: "Producto de Prueba", price: 10, img: "https://images.unsplash.com/photo-1523275335684-37898b6baf30?q=80&w=800", category: "Celulares", status: "stock" }
                             ]
                         };
                         window.fb.setDoc(docRef, initialData);
                     }
                     setLoading(false);
-                }, (err) => setLoading(false));
+                });
 
                 return () => unsubscribe();
             }, [user]);
 
             const updateData = async (fields) => {
-                if (!user) return;
                 const docRef = window.fb.doc(window.fb.db, 'artifacts', window.fb.appId, 'public', 'data', 'settings', 'main');
                 await window.fb.updateDoc(docRef, fields);
             };
@@ -133,7 +138,7 @@
                 <div className="h-screen flex items-center justify-center bg-[#09090b]">
                     <div className="text-center">
                         <div className="w-10 h-10 border-2 border-blue-500 border-t-transparent rounded-full animate-spin mx-auto mb-4"></div>
-                        <p className="text-[10px] font-black uppercase tracking-[0.3em] text-blue-500">Conectando con Tavo Cloud...</p>
+                        <p className="text-[10px] font-black uppercase tracking-[0.3em] text-blue-500">Cargando Tienda...</p>
                     </div>
                 </div>
             );
@@ -142,39 +147,37 @@
 
             const StoreView = () => (
                 <div className="fade-in">
-                    <header className="relative h-[50vh] md:h-[70vh] flex items-center justify-center overflow-hidden">
-                        <img src={data.settings.banner} className="absolute inset-0 w-full h-full object-cover opacity-40 scale-110" />
-                        <div className="absolute inset-0 bg-gradient-to-t from-[#09090b] via-[#09090b]/40 to-transparent"></div>
-                        <div className="relative z-10 px-6 text-center">
-                            <h1 className="text-6xl md:text-[10rem] font-black italic uppercase tracking-tighter leading-none mb-6">{data.settings.logo}</h1>
-                            <div className="inline-flex items-center gap-3 bg-white/5 backdrop-blur-xl border border-white/10 px-6 py-2 rounded-full">
-                                <span className="w-2 h-2 bg-green-500 rounded-full animate-pulse"></span>
-                                <span className="text-[10px] font-black uppercase tracking-widest text-zinc-300">Tasa: Bs. {data.rate.toFixed(2)}</span>
+                    <header className="relative h-[40vh] md:h-[60vh] flex items-center justify-center overflow-hidden">
+                        <img src={data.settings.banner} className="absolute inset-0 w-full h-full object-cover opacity-30" />
+                        <div className="absolute inset-0 bg-gradient-to-t from-[#09090b] to-transparent"></div>
+                        <div className="relative z-10 text-center px-4">
+                            <h1 className="text-5xl md:text-8xl font-black italic uppercase tracking-tighter mb-4">{data.settings.logo}</h1>
+                            <div className="inline-block bg-white/5 border border-white/10 px-4 py-2 rounded-full backdrop-blur-md">
+                                <span className="text-[10px] font-bold uppercase tracking-widest text-blue-400">Tasa: Bs. {data.rate.toFixed(2)}</span>
                             </div>
                         </div>
                     </header>
 
-                    <main className="max-w-7xl mx-auto px-6 -mt-20 relative z-20 pb-32">
-                        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
+                    <main className="max-w-7xl mx-auto px-6 -mt-10 relative z-20 pb-20">
+                        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
                             {data.products.map(p => (
-                                <div key={p.id} className="glass-card rounded-[2.5rem] overflow-hidden group">
-                                    <div className="aspect-[4/5] relative overflow-hidden">
-                                        <img src={p.img} className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-700" alt={p.name} />
-                                        <div className={`absolute top-6 left-6 px-4 py-1.5 rounded-full text-[9px] font-black uppercase tracking-widest ${p.status === 'stock' ? 'badge-stock' : 'badge-order'}`}>
+                                <div key={p.id} className="glass-card rounded-3xl overflow-hidden group">
+                                    <div className="aspect-[4/5] relative">
+                                        <img src={p.img} className="w-full h-full object-cover" />
+                                        <div className={`absolute top-4 left-4 px-3 py-1 rounded-full text-[8px] font-black uppercase ${p.status === 'stock' ? 'badge-stock' : 'badge-order'}`}>
                                             {p.status === 'stock' ? 'Disponible' : 'Por Encargo'}
                                         </div>
                                     </div>
-                                    <div className="p-8">
-                                        <span className="text-[9px] font-black uppercase text-blue-500 tracking-widest">{p.category}</span>
-                                        <h3 className="text-2xl font-bold mt-2 mb-6 h-14">{p.name}</h3>
-                                        <div className="flex justify-between items-end">
+                                    <div className="p-6">
+                                        <h3 className="text-xl font-bold mb-4">{p.name}</h3>
+                                        <div className="flex justify-between items-center">
                                             <div>
-                                                <p className="text-3xl font-black italic text-white">${p.price}</p>
-                                                <p className="text-[10px] text-zinc-500 font-bold uppercase">Bs. {formatBs(p.price)}</p>
+                                                <p className="text-2xl font-black italic">${p.price}</p>
+                                                <p className="text-[9px] text-zinc-500 uppercase font-bold">Bs. {formatBs(p.price)}</p>
                                             </div>
                                             <button 
-                                                onClick={() => window.open(`https://wa.me/${data.settings.whatsapp}?text=Hola! Me interesa: ${p.name}`)}
-                                                className="bg-white text-black px-8 py-3 rounded-xl font-black text-[10px] uppercase hover:bg-blue-600 hover:text-white transition-all shadow-xl shadow-black/50"
+                                                onClick={() => window.open(`https://wa.me/${data.settings.whatsapp}?text=Hola! Quiero comprar: ${p.name}`)}
+                                                className="bg-white text-black px-6 py-2 rounded-lg font-black text-[10px] uppercase hover:bg-blue-600 hover:text-white transition-colors"
                                             >
                                                 Pedir
                                             </button>
@@ -190,77 +193,60 @@
             const AdminView = () => {
                 const [pass, setPass] = useState("");
                 if (!isLogged) return (
-                    <div className="h-screen flex items-center justify-center px-6 bg-black">
-                        <div className="glass-card p-12 rounded-[3rem] w-full max-w-sm text-center">
-                            <h2 className="font-black mb-8 uppercase tracking-widest text-xs text-blue-500">Acceso Admin</h2>
-                            <input type="password" placeholder="Clave Maestra" className="admin-input mb-4 text-center" 
-                                onChange={e => setPass(e.target.value)} 
-                                onKeyDown={e => e.key === 'Enter' && pass === "tavo2026" && setIsLogged(true)} />
-                            <button onClick={() => pass === "tavo2026" ? setIsLogged(true) : alert("Clave Incorrecta")} className="w-full bg-blue-600 py-4 rounded-xl font-black text-[10px] uppercase tracking-widest">Entrar</button>
+                    <div className="h-screen flex items-center justify-center px-6">
+                        <div className="glass-card p-10 rounded-3xl w-full max-w-xs text-center">
+                            <h2 className="text-xs font-black uppercase mb-6 tracking-widest">Admin Access</h2>
+                            <input type="password" placeholder="Clave" className="admin-input mb-4 text-center" onChange={e => setPass(e.target.value)} />
+                            <button onClick={() => pass === "tavo2026" ? setIsLogged(true) : alert("Error")} className="w-full bg-blue-600 py-3 rounded-xl text-[10px] font-bold uppercase">Entrar</button>
                         </div>
                     </div>
                 );
 
                 return (
-                    <div className="max-w-6xl mx-auto px-6 py-32 fade-in">
-                        <div className="flex justify-between items-end mb-16">
-                            <div>
-                                <h2 className="text-4xl font-black italic uppercase">Gestión <span className="text-blue-500">Cloud</span></h2>
-                                <p className="text-zinc-500 text-[10px] font-black uppercase tracking-widest mt-2">Los cambios se aplican al instante</p>
+                    <div className="max-w-4xl mx-auto px-6 py-32 fade-in">
+                        <h2 className="text-3xl font-black uppercase mb-10">Panel de Control</h2>
+                        
+                        <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mb-12">
+                            <div className="glass-card p-6 rounded-2xl">
+                                <label className="text-[10px] font-bold uppercase text-zinc-500 block mb-2">Tasa del Dólar</label>
+                                <input type="number" className="admin-input" value={data.rate} onChange={e => updateData({ rate: parseFloat(e.target.value) || 0 })} />
                             </div>
-                            <button onClick={() => {
-                                const newP = { id: Date.now(), name: "Nuevo Item", price: 0, img: "", status: "stock", category: "Sin Categoría" };
-                                updateData({ products: [newP, ...data.products] });
-                            }} className="bg-blue-600 px-8 py-4 rounded-2xl font-black text-[10px] uppercase">Añadir Producto</button>
-                        </div>
-
-                        <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-20">
-                            <div className="glass-card p-8 rounded-[2rem]">
-                                <label className="text-[9px] uppercase font-black text-zinc-500 mb-3 block">Tasa del Dólar</label>
-                                <input type="number" step="0.01" className="admin-input text-2xl font-black" value={data.rate} onChange={e => updateData({ rate: parseFloat(e.target.value) || 0 })} />
-                            </div>
-                            <div className="glass-card p-8 rounded-[2rem]">
-                                <label className="text-[9px] uppercase font-black text-zinc-500 mb-3 block">WhatsApp (Formato: 58...)</label>
+                            <div className="glass-card p-6 rounded-2xl">
+                                <label className="text-[10px] font-bold uppercase text-zinc-500 block mb-2">WhatsApp (Ej: 58424...)</label>
                                 <input className="admin-input" value={data.settings.whatsapp} onChange={e => updateData({ 'settings.whatsapp': e.target.value })} />
                             </div>
-                            <div className="glass-card p-8 rounded-[2rem]">
-                                <label className="text-[9px] uppercase font-black text-zinc-500 mb-3 block">Nombre de Marca</label>
-                                <input className="admin-input" value={data.settings.logo} onChange={e => updateData({ 'settings.logo': e.target.value })} />
-                            </div>
                         </div>
 
-                        <div className="space-y-6">
+                        <div className="flex justify-between items-center mb-6">
+                            <h3 className="font-bold uppercase text-xs">Productos</h3>
+                            <button onClick={() => {
+                                const newP = { id: Date.now(), name: "Nuevo Producto", price: 0, img: "", status: "stock", category: "Celulares" };
+                                updateData({ products: [newP, ...data.products] });
+                            }} className="bg-blue-600 px-4 py-2 rounded-lg text-[10px] font-bold">Añadir</button>
+                        </div>
+
+                        <div className="space-y-4">
                             {data.products.map((p, i) => (
-                                <div key={p.id} className="glass-card p-6 rounded-[2.5rem] flex flex-wrap gap-6 items-center border-white/5">
-                                    <div className="w-20 h-20 rounded-2xl bg-black overflow-hidden shrink-0 border border-white/10">
-                                        <img src={p.img} className="w-full h-full object-cover" onError={e => e.target.src='https://placehold.co/100'} />
+                                <div key={p.id} className="glass-card p-4 rounded-2xl flex flex-col md:flex-row gap-4 items-center">
+                                    <div className="w-16 h-16 bg-black rounded-lg overflow-hidden shrink-0">
+                                        <img src={p.img} className="w-full h-full object-cover" />
                                     </div>
-                                    <div className="flex-1 min-w-[250px]">
-                                        <input className="admin-input mb-2 font-bold" value={p.name} placeholder="Nombre del Producto" onChange={e => {
+                                    <div className="flex-1 space-y-2 w-full">
+                                        <input className="admin-input" value={p.name} onChange={e => {
                                             const copy = [...data.products]; copy[i].name = e.target.value; updateData({ products: copy });
                                         }} />
-                                        <input className="text-[10px] bg-transparent border-none text-zinc-600 outline-none w-full" value={p.img} placeholder="URL de la Imagen" onChange={e => {
+                                        <input className="text-[10px] bg-transparent outline-none w-full text-zinc-500" value={p.img} placeholder="URL Imagen" onChange={e => {
                                             const copy = [...data.products]; copy[i].img = e.target.value; updateData({ products: copy });
                                         }} />
                                     </div>
-                                    <div className="w-24">
-                                        <label className="text-[8px] font-black text-zinc-600 block mb-1 uppercase">Precio $</label>
-                                        <input type="number" className="admin-input" value={p.price} onChange={e => {
+                                    <div className="flex gap-2 w-full md:w-auto">
+                                        <input type="number" className="admin-input w-20" value={p.price} onChange={e => {
                                             const copy = [...data.products]; copy[i].price = parseFloat(e.target.value) || 0; updateData({ products: copy });
                                         }} />
+                                        <button onClick={() => {
+                                            if(confirm("Eliminar?")) updateData({ products: data.products.filter(item => item.id !== p.id) })
+                                        }} className="text-red-500 p-2">✕</button>
                                     </div>
-                                    <div className="w-32">
-                                        <label className="text-[8px] font-black text-zinc-600 block mb-1 uppercase">Status</label>
-                                        <select className="admin-input" value={p.status} onChange={e => {
-                                            const copy = [...data.products]; copy[i].status = e.target.value; updateData({ products: copy });
-                                        }}>
-                                            <option value="stock">Stock</option>
-                                            <option value="order">Pedido</option>
-                                        </select>
-                                    </div>
-                                    <button onClick={() => { if(confirm("¿Eliminar?")) updateData({ products: data.products.filter(item => item.id !== p.id) }) }} className="text-red-500 hover:bg-red-500/10 p-4 rounded-xl transition-all">
-                                        <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M3 6h18"/><path d="M19 6v14c0 1-1 2-2 2H7c-1 0-2-1-2-2V6"/><path d="M8 6V4c0-1 1-2 2-2h4c1 0 2 1 2 2v2"/></svg>
-                                    </button>
                                 </div>
                             ))}
                         </div>
@@ -270,10 +256,10 @@
 
             return (
                 <div>
-                    <nav className="fixed top-0 w-full z-[100] bg-zinc-950/80 backdrop-blur-xl border-b border-white/5 px-8 py-6 flex justify-between items-center">
-                        <span className="font-black italic text-xl uppercase tracking-tighter" onClick={() => setView('store')}>{data.settings.logo}</span>
-                        <button onClick={() => setView(view === 'admin' ? 'store' : 'admin')} className="text-[9px] font-black uppercase tracking-[0.3em] bg-white/5 border border-white/10 px-6 py-2 rounded-full hover:bg-blue-600 transition-all">
-                            {view === 'admin' ? 'Ver Tienda' : 'Panel Cloud'}
+                    <nav className="fixed top-0 w-full z-[100] bg-black/50 backdrop-blur-lg border-b border-white/5 px-6 py-4 flex justify-between items-center">
+                        <span className="font-black italic text-lg uppercase tracking-tighter cursor-pointer" onClick={() => setView('store')}>{data.settings.logo}</span>
+                        <button onClick={() => setView(view === 'admin' ? 'store' : 'admin')} className="text-[8px] font-black uppercase tracking-widest bg-white/5 border border-white/10 px-4 py-2 rounded-full">
+                            {view === 'admin' ? 'Volver' : 'Admin'}
                         </button>
                     </nav>
 
@@ -287,3 +273,4 @@
     </script>
 </body>
 </html>
+
