@@ -19,6 +19,7 @@
             font-family: 'Plus Jakarta Sans', sans-serif;
             background-color: var(--bg);
             color: #f8fafc;
+            margin: 0;
             overflow-x: hidden;
         }
 
@@ -26,7 +27,6 @@
             background: rgba(15, 23, 42, 0.7);
             backdrop-filter: blur(20px);
             border: 1px solid rgba(255, 255, 255, 0.05);
-            box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.5);
         }
 
         .product-card {
@@ -34,43 +34,45 @@
         }
 
         .product-card:hover {
-            transform: translateY(-10px);
+            transform: translateY(-8px);
             border-color: var(--primary);
         }
 
         .input-elegant {
-            background: rgba(0, 0, 0, 0.3);
+            background: rgba(0, 0, 0, 0.4);
             border: 1px solid rgba(255, 255, 255, 0.1);
-            transition: border-color 0.3s;
+            border-radius: 0.75rem;
+            padding: 0.75rem 1rem;
+            color: white;
+            width: 100%;
+            outline: none;
         }
 
         .input-elegant:focus {
             border-color: var(--primary);
-            outline: none;
         }
 
-        .animate-float {
-            animation: float 6s ease-in-out infinite;
+        .fade-in {
+            animation: fadeIn 0.8s ease-out forwards;
         }
 
-        @keyframes float {
-            0% { transform: translateY(0px); }
-            50% { transform: translateY(-20px); }
-            100% { transform: translateY(0px); }
+        @keyframes fadeIn {
+            from { opacity: 0; transform: translateY(15px); }
+            to { opacity: 1; transform: translateY(0); }
         }
 
-        ::-webkit-scrollbar { width: 8px; }
-        ::-webkit-scrollbar-track { background: var(--bg); }
-        ::-webkit-scrollbar-thumb { background: #334155; border-radius: 10px; }
+        /* Prevent layout shift during loading */
+        #root { min-height: 100vh; }
     </style>
 </head>
 <body>
     <div id="root"></div>
 
+    <!-- Firebase SDKs - Fixed Imports for production -->
     <script type="module">
-        import { initializeApp } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-app.js";
-        import { getAuth, signInAnonymously, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-auth.js";
-        import { getFirestore, doc, setDoc, onSnapshot, updateDoc, collection, deleteDoc } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
+        import { initializeApp } from "https://www.gstatic.com/firebasejs/11.1.0/firebase-app.js";
+        import { getAuth, signInAnonymously, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/11.1.0/firebase-auth.js";
+        import { getFirestore, doc, setDoc, onSnapshot, updateDoc, collection, deleteDoc } from "https://www.gstatic.com/firebasejs/11.1.0/firebase-firestore.js";
 
         const firebaseConfig = {
             apiKey: "AIzaSyBQwVbcCO2GHCHKL5EoEOG9Jo3ZAXGAy2o",
@@ -86,15 +88,17 @@
         const auth = getAuth(app);
         const db = getFirestore(app);
 
+        // Global access for React
         window.fb = { db, auth, appId, doc, setDoc, onSnapshot, updateDoc, collection, deleteDoc, signInAnonymously, onAuthStateChanged };
     </script>
 
+    <!-- UI Libraries -->
     <script src="https://unpkg.com/react@18/umd/react.production.min.js"></script>
     <script src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js"></script>
     <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
 
     <script type="text/babel">
-        const { useState, useEffect, useRef } = React;
+        const { useState, useEffect, useCallback } = React;
 
         const App = () => {
             const [user, setUser] = useState(null);
@@ -103,55 +107,68 @@
             const [loading, setLoading] = useState(true);
             const [data, setData] = useState({
                 rate: 62.00,
-                autoRate: true,
                 settings: {
                     logo: "TAVO STORE",
                     whatsapp: "584249649769",
-                    banner: "https://images.unsplash.com/photo-1616348436168-de43ad0db179?q=80&w=2000",
-                    bgType: "gradient"
+                    banner: "https://images.unsplash.com/photo-1616348436168-de43ad0db179?q=80&w=2000"
                 },
                 products: []
             });
 
-            // Auth
+            // Authentication
             useEffect(() => {
-                window.fb.signInAnonymously(window.fb.auth);
-                window.fb.onAuthStateChanged(window.fb.auth, setUser);
+                const init = async () => {
+                    try {
+                        if (window.fb) {
+                            await window.fb.signInAnonymously(window.fb.auth);
+                            window.fb.onAuthStateChanged(window.fb.auth, setUser);
+                        }
+                    } catch (e) { console.error("Auth failed", e); }
+                };
+                init();
             }, []);
 
-            // Sync Data
+            // Data Sync
             useEffect(() => {
-                if (!user) return;
+                if (!user || !window.fb) return;
 
                 const settingsRef = window.fb.doc(window.fb.db, 'artifacts', window.fb.appId, 'public', 'data', 'configuracion', 'general');
                 const unsubsSettings = window.fb.onSnapshot(settingsRef, (snap) => {
-                    if (snap.exists()) setData(prev => ({ ...prev, ...snap.data() }));
-                });
+                    if (snap.exists()) {
+                        setData(prev => ({ ...prev, ...snap.data() }));
+                    } else {
+                        // Create initial if missing
+                        window.fb.setDoc(settingsRef, { rate: 62.00, settings: data.settings });
+                    }
+                }, (err) => console.log("Settings error", err));
 
                 const prodsRef = window.fb.collection(window.fb.db, 'artifacts', window.fb.appId, 'public', 'data', 'productos');
                 const unsubsProds = window.fb.onSnapshot(prodsRef, (snap) => {
                     const prods = snap.docs.map(d => ({ id: d.id, ...d.data() }));
                     setData(prev => ({ ...prev, products: prods }));
                     setLoading(false);
-                });
-
-                // Auto Rate Fetch
-                if(data.autoRate) fetchRate();
+                }, (err) => console.log("Products error", err));
 
                 return () => { unsubsSettings(); unsubsProds(); };
             }, [user]);
 
-            const fetchRate = async () => {
+            const fetchAutoRate = async () => {
                 try {
                     const res = await fetch('https://pydolarvenezuela-api.vercel.app/api/v1/dollar?page=bcv');
                     const json = await res.json();
                     const bcv = json.monitors.bcv.price;
                     if(bcv) updateSettings({ rate: parseFloat(bcv) });
-                } catch (e) { console.log("Error consultando tasa automática"); }
+                } catch (e) { alert("No se pudo obtener la tasa automáticamente. Intenta manual."); }
             };
 
             const updateSettings = async (fields) => {
+                if (!window.fb) return;
                 const ref = window.fb.doc(window.fb.db, 'artifacts', window.fb.appId, 'public', 'data', 'configuracion', 'general');
+                await window.fb.updateDoc(ref, fields);
+            };
+
+            const updateProd = async (id, fields) => {
+                const ref = window.fb.doc(window.fb.db, 'artifacts', window.fb.appId, 'public', 'data', 'productos', id);
                 await window.fb.updateDoc(ref, fields);
             };
 
@@ -165,165 +182,142 @@
             };
 
             if (loading) return (
-                <div className="h-screen flex flex-col items-center justify-center bg-slate-950">
-                    <div className="w-16 h-16 border-4 border-blue-500 border-t-transparent rounded-full animate-spin mb-4"></div>
-                    <p className="text-blue-400 font-bold tracking-[0.5em] animate-pulse">TAVO STORE</p>
+                <div className="h-screen flex flex-col items-center justify-center bg-[#020617]">
+                    <div className="w-12 h-12 border-4 border-blue-600 border-t-transparent rounded-full animate-spin mb-4"></div>
+                    <p className="text-blue-500 font-bold tracking-[0.3em] text-xs uppercase">Sincronizando Tienda...</p>
                 </div>
             );
 
-            // COMPONENTES DE VISTA
-            const Nav = () => (
-                <nav className="fixed top-0 w-full z-50 premium-glass px-6 py-4 flex justify-between items-center">
-                    <div className="flex items-center gap-3 cursor-pointer" onClick={() => setView('store')}>
-                        <div className="w-10 h-10 bg-blue-600 rounded-xl flex items-center justify-center shadow-lg shadow-blue-600/20">
-                            <i className="fas fa-bolt text-white"></i>
+            return (
+                <div className="min-h-screen pb-20">
+                    {/* Navigation */}
+                    <nav className="fixed top-0 w-full z-50 premium-glass px-6 py-4 flex justify-between items-center border-b border-white/5">
+                        <div className="flex items-center gap-3 cursor-pointer" onClick={() => setView('store')}>
+                            <div className="w-9 h-9 bg-blue-600 rounded-xl flex items-center justify-center shadow-lg shadow-blue-600/20">
+                                <i className="fas fa-bolt text-white text-sm"></i>
+                            </div>
+                            <span className="text-xl font-black tracking-tighter italic uppercase">{data.settings.logo}</span>
                         </div>
-                        <span className="text-xl font-black tracking-tighter italic">{data.settings.logo}</span>
-                    </div>
-                    <div className="flex items-center gap-4">
                         <button onClick={() => setView(view === 'admin' ? 'store' : 'admin')} className="bg-white/5 hover:bg-white/10 px-5 py-2 rounded-full text-[10px] font-bold uppercase tracking-widest transition-all border border-white/5">
-                            {view === 'admin' ? <i className="fas fa-times mr-2"></i> : <i className="fas fa-cog mr-2"></i>}
-                            {view === 'admin' ? 'Cerrar Panel' : 'Administrar'}
+                            {view === 'admin' ? 'Volver' : 'Panel Admin'}
                         </button>
-                    </div>
-                </nav>
-            );
+                    </nav>
 
-            const Store = () => (
-                <div className="fade-in">
-                    <header className="relative h-[60vh] flex items-center justify-center">
-                        <img src={data.settings.banner} className="absolute inset-0 w-full h-full object-cover opacity-40" />
-                        <div className="absolute inset-0 bg-gradient-to-t from-slate-950 via-slate-950/20 to-transparent"></div>
-                        <div className="relative text-center px-6">
-                            <h1 className="text-7xl md:text-[9rem] font-black italic tracking-tighter leading-none mb-6 animate-float">{data.settings.logo}</h1>
-                            <div className="inline-flex items-center gap-3 bg-white/5 border border-white/10 px-6 py-3 rounded-2xl backdrop-blur-xl">
-                                <i className="fas fa-university text-blue-400"></i>
-                                <span className="font-bold text-sm tracking-tight text-slate-300">Tasa Oficial: <span className="text-white">Bs. {data.rate.toFixed(2)}</span></span>
-                            </div>
-                        </div>
-                    </header>
-
-                    <div className="max-w-7xl mx-auto px-6 grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-8 -mt-20 relative z-10 pb-40">
-                        {data.products.map(p => (
-                            <div key={p.id} className="product-card premium-glass rounded-[2.5rem] overflow-hidden group">
-                                <div className="aspect-[4/5] relative overflow-hidden">
-                                    <img src={p.img || 'https://placehold.co/400x500'} className="w-full h-full object-cover transition-transform duration-700 group-hover:scale-110" />
-                                    <div className={`absolute top-6 left-6 px-4 py-1.5 rounded-full text-[9px] font-black uppercase tracking-widest ${p.status === 'stock' ? 'bg-green-500/20 text-green-400 border border-green-500/30' : 'bg-orange-500/20 text-orange-400 border border-orange-500/30'}`}>
-                                        {p.status === 'stock' ? 'En Stock' : 'Encargo'}
+                    {view === 'store' ? (
+                        <div className="fade-in pt-16">
+                            <header className="relative h-[50vh] flex items-center justify-center">
+                                <img src={data.settings.banner} className="absolute inset-0 w-full h-full object-cover opacity-30" />
+                                <div className="absolute inset-0 bg-gradient-to-t from-[#020617] via-transparent to-transparent"></div>
+                                <div className="relative text-center px-6">
+                                    <h1 className="text-6xl md:text-9xl font-black italic tracking-tighter leading-none mb-4 uppercase">{data.settings.logo}</h1>
+                                    <div className="inline-flex items-center gap-3 bg-blue-600/10 border border-blue-500/20 px-6 py-2 rounded-2xl backdrop-blur-md">
+                                        <span className="font-bold text-sm text-slate-300">Tasa BCV: <span className="text-white">Bs. {data.rate.toFixed(2)}</span></span>
                                     </div>
                                 </div>
-                                <div className="p-8">
-                                    <h3 className="text-xl font-bold mb-4 line-clamp-1">{p.name}</h3>
-                                    <div className="flex justify-between items-end">
-                                        <div>
-                                            <p className="text-3xl font-black italic text-white">${p.price}</p>
-                                            <p className="text-[10px] text-slate-500 font-bold">Bs. {(p.price * data.rate).toLocaleString('es-VE')}</p>
-                                        </div>
-                                        <button 
-                                            onClick={() => window.open(`https://wa.me/${data.settings.whatsapp}?text=Hola! 👋 Me interesa el producto: ${p.name}`)}
-                                            className="bg-blue-600 hover:bg-blue-500 text-white w-12 h-12 rounded-2xl flex items-center justify-center transition-all shadow-lg shadow-blue-600/30 active:scale-90"
-                                        >
-                                            <i className="fab fa-whatsapp text-xl"></i>
-                                        </button>
-                                    </div>
-                                </div>
-                            </div>
-                        ))}
-                    </div>
-                </div>
-            );
+                            </header>
 
-            const Admin = () => {
-                const [pass, setPass] = useState("");
-                const [localProds, setLocalProds] = useState(data.products);
-
-                // Sincronizar localmente para escritura fluida
-                useEffect(() => { setLocalProds(data.products); }, [data.products]);
-
-                if (!isAdmin) return (
-                    <div className="h-screen flex items-center justify-center px-6 bg-slate-950">
-                        <div className="premium-glass p-12 rounded-[3rem] w-full max-w-sm text-center">
-                            <i className="fas fa-lock text-blue-500 text-4xl mb-6"></i>
-                            <h2 className="text-xs font-black uppercase tracking-[0.3em] mb-8 text-slate-500">Acceso Seguro</h2>
-                            <input type="password" placeholder="Contraseña" className="input-elegant w-full p-4 rounded-2xl text-center mb-4" onChange={e => setPass(e.target.value)} />
-                            <button onClick={() => pass === "tavo2026" ? setIsAdmin(true) : alert("Clave Incorrecta")} className="w-full bg-blue-600 py-4 rounded-2xl font-bold uppercase text-[10px] tracking-widest">Entrar al Sistema</button>
-                        </div>
-                    </div>
-                );
-
-                const updateProd = (id, fields) => {
-                    const docRef = window.fb.doc(window.fb.db, 'artifacts', window.fb.appId, 'public', 'data', 'productos', id);
-                    window.fb.updateDoc(docRef, fields);
-                };
-
-                const addNew = async () => {
-                    const id = "p_" + Date.now();
-                    const docRef = window.fb.doc(window.fb.db, 'artifacts', window.fb.appId, 'public', 'data', 'productos', id);
-                    await window.fb.setDoc(docRef, { name: "Nuevo Producto", price: 0, img: "", status: "stock", category: "General" });
-                };
-
-                return (
-                    <div className="max-w-5xl mx-auto px-6 py-32 fade-in pb-40">
-                        <div className="flex justify-between items-center mb-12">
-                            <h2 className="text-4xl font-black italic tracking-tighter">CONFIGURACIÓN <span className="text-blue-500">CLOUD</span></h2>
-                            <button onClick={addNew} className="bg-blue-600 px-8 py-3 rounded-2xl font-bold text-xs uppercase shadow-xl shadow-blue-600/20 hover:scale-105 transition-transform">
-                                <i className="fas fa-plus mr-2"></i> Nuevo Item
-                            </button>
-                        </div>
-
-                        {/* Settings Grid */}
-                        <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-12">
-                            <div className="premium-glass p-8 rounded-[2.5rem]">
-                                <div className="flex justify-between items-center mb-4">
-                                    <label className="text-[10px] font-black text-slate-500 uppercase">Tasa Dólar</label>
-                                    <button onClick={fetchRate} className="text-blue-500 text-[10px] font-bold">Auto <i className="fas fa-sync"></i></button>
-                                </div>
-                                <input type="number" step="0.01" className="input-elegant w-full p-3 rounded-xl text-xl font-black" value={data.rate} onChange={e => updateSettings({ rate: parseFloat(e.target.value) || 0 })} />
-                            </div>
-                            <div className="premium-glass p-8 rounded-[2.5rem]">
-                                <label className="text-[10px] font-black text-slate-500 uppercase mb-4 block">WhatsApp Comercial</label>
-                                <input className="input-elegant w-full p-3 rounded-xl font-bold" value={data.settings.whatsapp} onChange={e => updateSettings({ 'settings.whatsapp': e.target.value })} />
-                            </div>
-                            <div className="premium-glass p-8 rounded-[2.5rem]">
-                                <label className="text-[10px] font-black text-slate-500 uppercase mb-4 block">Banner Principal</label>
-                                <div className="flex gap-2">
-                                    <input className="input-elegant flex-1 p-3 rounded-xl text-[10px]" value={data.settings.banner} onChange={e => updateSettings({ 'settings.banner': e.target.value })} />
-                                    <label className="bg-blue-600 p-3 rounded-xl cursor-pointer"><i className="fas fa-upload"></i>
-                                        <input type="file" className="hidden" accept="image/*" onChange={e => handleFileUpload(e, (url) => updateSettings({ 'settings.banner': url }))} />
-                                    </label>
-                                </div>
-                            </div>
-                        </div>
-
-                        {/* Products Manager */}
-                        <div className="space-y-6">
-                            {localProds.map((p, idx) => (
-                                <div key={p.id} className="premium-glass p-6 rounded-[2rem] flex flex-col md:flex-row gap-6 items-center">
-                                    <div className="w-24 h-24 rounded-2xl bg-black overflow-hidden shrink-0 border border-white/5 relative group">
-                                        <img src={p.img || 'https://placehold.co/100'} className="w-full h-full object-cover" />
-                                        <label className="absolute inset-0 bg-black/60 flex items-center justify-center opacity-0 group-hover:opacity-100 cursor-pointer transition-opacity">
-                                            <i className="fas fa-camera text-white"></i>
-                                            <input type="file" className="hidden" accept="image/*" onChange={e => handleFileUpload(e, (url) => updateProd(p.id, { img: url }))} />
-                                        </label>
-                                    </div>
-                                    <div className="flex-1 space-y-3 w-full">
-                                        <div className="flex gap-4">
-                                            <input className="input-elegant flex-1 p-3 rounded-xl font-bold" value={p.name} onChange={e => updateProd(p.id, { name: e.target.value })} />
-                                            <select className="input-elegant p-3 rounded-xl text-[10px] font-bold uppercase" value={p.status} onChange={e => updateProd(p.id, { status: e.target.value })}>
-                                                <option value="stock">En Stock</option>
-                                                <option value="order">Encargo</option>
-                                            </select>
-                                        </div>
-                                        <div className="flex gap-4">
-                                            <input className="input-elegant flex-1 p-3 rounded-xl text-[10px] text-slate-500" value={p.img} placeholder="URL de la imagen" onChange={e => updateProd(p.id, { img: e.target.value })} />
-                                            <div className="flex items-center gap-2 bg-black/40 px-4 rounded-xl">
-                                                <span className="text-blue-500 font-bold">$</span>
-                                                <input type="number" className="bg-transparent outline-none w-20 font-black" value={p.price} onChange={e => updateProd(p.id, { price: parseFloat(e.target.value) || 0 })} />
+                            <div className="max-w-7xl mx-auto px-6 grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-8 -mt-10 relative z-10">
+                                {data.products.map(p => (
+                                    <div key={p.id} className="product-card premium-glass rounded-[2.5rem] overflow-hidden">
+                                        <div className="aspect-[4/5] relative">
+                                            <img src={p.img || 'https://placehold.co/400x500/1e293b/fff?text=TavoStore'} className="w-full h-full object-cover" />
+                                            <div className={`absolute top-5 left-5 px-4 py-1.5 rounded-full text-[8px] font-black uppercase tracking-widest ${p.status === 'stock' ? 'bg-green-500/20 text-green-400' : 'bg-amber-500/20 text-amber-400'}`}>
+                                                {p.status === 'stock' ? 'En Stock' : 'Por Encargo'}
                                             </div>
-                                            <button onClick={() => window.fb.deleteDoc(window.fb.doc(window.fb.db, 'artifacts', window.fb.appId, 'public', 'data', 'productos', p.id))} className="text-red-500 hover:bg-red-500/10 p-3 rounded-xl transition-colors">
-                                                <i className="fas fa-trash"></i>
-                                            </button>
+                                        </div>
+                                        <div className="p-8">
+                                            <h3 className="text-lg font-bold mb-4 line-clamp-1 uppercase">{p.name}</h3>
+                                            <div className="flex justify-between items-end">
+                                                <div>
+                                                    <p className="text-3xl font-black italic">${p.price}</p>
+                                                    <p className="text-[10px] text-slate-500 font-bold uppercase">Bs. {(p.price * data.rate).toLocaleString('es-VE')}</p>
+                                                </div>
+                                                <button 
+                                                    onClick={() => window.open(`https://wa.me/${data.settings.whatsapp}?text=Hola! 👋 Me interesa el artículo: ${p.name}`)}
+                                                    className="bg-blue-600 hover:bg-blue-500 text-white w-12 h-12 rounded-2xl flex items-center justify-center transition-all shadow-lg shadow-blue-600/30"
+                                                >
+                                                    <i className="fab fa-whatsapp text-xl"></i>
+                                                </button>
+                                            </div>
                                         </div>
                                     </div>
+                                ))}
+                            </div>
+                        </div>
+                    ) : (
+                        <div className="max-w-5xl mx-auto px-6 py-32 fade-in">
+                            {!isAdmin ? (
+                                <div className="h-[60vh] flex items-center justify-center">
+                                    <div className="premium-glass p-12 rounded-[3rem] w-full max-w-sm text-center">
+                                        <h2 className="text-[10px] font-black uppercase tracking-widest mb-8 text-slate-500">Security Access</h2>
+                                        <input type="password" placeholder="Clave" className="input-elegant text-center mb-6" onKeyDown={e => e.key === 'Enter' && e.target.value === 'tavo2026' && setIsAdmin(true)} />
+                                        <button onClick={(e) => { 
+                                            const val = e.target.previousSibling.value;
+                                            if(val === 'tavo2026') setIsAdmin(true);
+                                            else alert("Incorrecto");
+                                        }} className="w-full bg-blue-600 py-4 rounded-2xl font-black uppercase text-[10px] tracking-widest">Desbloquear</button>
+                                    </div>
                                 </div>
-                         
+                            ) : (
+                                <div className="space-y-12">
+                                    <div className="flex justify-between items-center">
+                                        <h2 className="text-3xl font-black italic uppercase">Gestión de Tienda</h2>
+                                        <button onClick={async () => {
+                                            const id = "p_" + Date.now();
+                                            await window.fb.setDoc(window.fb.doc(window.fb.db, 'artifacts', window.fb.appId, 'public', 'data', 'productos', id), { name: "Nuevo Producto", price: 0, img: "", status: "stock" });
+                                        }} className="bg-blue-600 px-8 py-3 rounded-2xl font-bold text-xs uppercase">Nuevo Item</button>
+                                    </div>
+
+                                    <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+                                        <div className="premium-glass p-8 rounded-[2rem]">
+                                            <div className="flex justify-between mb-4"><label className="text-[9px] font-black uppercase text-slate-500">Tasa Dólar</label><button onClick={fetchAutoRate} className="text-blue-500 text-[9px] font-bold uppercase">Auto BCV</button></div>
+                                            <input type="number" step="0.01" className="input-elegant font-black text-xl" value={data.rate} onChange={e => updateSettings({ rate: parseFloat(e.target.value) || 0 })} />
+                                        </div>
+                                        <div className="premium-glass p-8 rounded-[2rem]">
+                                            <label className="text-[9px] font-black uppercase text-slate-500 mb-4 block">Nombre Tienda</label>
+                                            <input className="input-elegant font-bold" value={data.settings.logo} onChange={e => updateSettings({ 'settings.logo': e.target.value })} />
+                                        </div>
+                                        <div className="premium-glass p-8 rounded-[2rem]">
+                                            <label className="text-[9px] font-black uppercase text-slate-500 mb-4 block">WhatsApp (58...)</label>
+                                            <input className="input-elegant font-bold" value={data.settings.whatsapp} onChange={e => updateSettings({ 'settings.whatsapp': e.target.value })} />
+                                        </div>
+                                    </div>
+
+                                    <div className="space-y-6">
+                                        <h3 className="text-xs font-black uppercase tracking-widest text-slate-500">Lista de Productos</h3>
+                                        {data.products.map(p => (
+                                            <div key={p.id} className="premium-glass p-6 rounded-3xl flex flex-col md:flex-row gap-6 items-center">
+                                                <div className="w-20 h-20 rounded-2xl overflow-hidden bg-black shrink-0 relative group">
+                                                    <img src={p.img || 'https://placehold.co/100'} className="w-full h-full object-cover" />
+                                                    <label className="absolute inset-0 bg-black/60 flex items-center justify-center opacity-0 group-hover:opacity-100 cursor-pointer">
+                                                        <i className="fas fa-camera"></i>
+                                                        <input type="file" className="hidden" accept="image/*" onChange={e => handleFileUpload(e, (url) => updateProd(p.id, { img: url }))} />
+                                                    </label>
+                                                </div>
+                                                <div className="flex-1 w-full space-y-4">
+                                                    <div className="flex gap-4">
+                                                        <input className="input-elegant flex-1 font-bold uppercase text-xs" value={p.name} onChange={e => updateProd(p.id, { name: e.target.value })} />
+                                                        <select className="input-elegant w-40 text-[10px] font-bold" value={p.status} onChange={e => updateProd(p.id, { status: e.target.value })}>
+                                                            <option value="stock">EN STOCK</option>
+                                                            <option value="order">POR ENCARGO</option>
+                                                        </select>
+                                                    </div>
+                                                    <div className="flex gap-4">
+                                                        <input className="input-elegant flex-1 text-[10px] text-slate-500" value={p.img} placeholder="URL Imagen" onChange={e => updateProd(p.id, { img: e.target.value })} />
+                                                        <div className="flex items-center gap-2 bg-black/40 px-4 rounded-xl border border-white/5">
+                                                            <span className="text-blue-500 font-black">$</span>
+                                                            <input type="number" className="bg-transparent outline-none w-16 font-black" value={p.price} onChange={e => updateProd(p.id, { price: parseFloat(e.target.value) || 0 })} />
+                                                        </div>
+                                                        <button onClick={() => window.fb.deleteDoc(window.fb.doc(window.fb.db, 'artifacts', window.fb.appId, 'public', 'data', 'productos', p.id))} className="text-red-500 px-4 hover:bg-red-500/10 rounded-xl"><i className="fas fa-trash"></i></button>
+                                                    </div>
+                                                </div>
+                                            </div>
+                                               );
+        };
+
+        const root = ReactDOM.createRoot(document.getElementById('root'));
+        root.render(<App />);
+    </script>
+</body>
+</html>
+                                    
