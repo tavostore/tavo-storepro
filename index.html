@@ -4,8 +4,11 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Tavo Store | Premium Cloud</title>
+    
+    <!-- Scripts de Estilo y UI -->
     <script src="https://cdn.tailwindcss.com"></script>
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    
     <style>
         @import url('https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@300;400;600;800&display=swap');
         
@@ -23,21 +26,25 @@
             overflow-x: hidden;
         }
 
+        /* Estilo Cristal Premium */
         .premium-glass {
             background: rgba(15, 23, 42, 0.7);
             backdrop-filter: blur(20px);
             border: 1px solid rgba(255, 255, 255, 0.05);
+            box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.5);
         }
 
+        /* Efectos de Tarjetas */
         .product-card {
             transition: all 0.4s cubic-bezier(0.4, 0, 0.2, 1);
         }
 
         .product-card:hover {
-            transform: translateY(-8px);
+            transform: translateY(-10px);
             border-color: var(--primary);
         }
 
+        /* Inputs Elegantes */
         .input-elegant {
             background: rgba(0, 0, 0, 0.4);
             border: 1px solid rgba(255, 255, 255, 0.1);
@@ -46,29 +53,45 @@
             color: white;
             width: 100%;
             outline: none;
+            transition: all 0.3s;
         }
 
         .input-elegant:focus {
             border-color: var(--primary);
+            box-shadow: 0 0 0 2px rgba(59, 130, 246, 0.2);
         }
 
+        /* Animaciones */
         .fade-in {
             animation: fadeIn 0.8s ease-out forwards;
         }
 
         @keyframes fadeIn {
-            from { opacity: 0; transform: translateY(15px); }
+            from { opacity: 0; transform: translateY(20px); }
             to { opacity: 1; transform: translateY(0); }
         }
 
-        /* Prevent layout shift during loading */
-        #root { min-height: 100vh; }
+        .animate-float {
+            animation: float 6s ease-in-out infinite;
+        }
+
+        @keyframes float {
+            0% { transform: translateY(0px); }
+            50% { transform: translateY(-15px); }
+            100% { transform: translateY(0px); }
+        }
+
+        /* Scrollbar Personalizado */
+        ::-webkit-scrollbar { width: 8px; }
+        ::-webkit-scrollbar-track { background: var(--bg); }
+        ::-webkit-scrollbar-thumb { background: #1e293b; border-radius: 10px; }
+        ::-webkit-scrollbar-thumb:hover { background: #334155; }
     </style>
 </head>
 <body>
     <div id="root"></div>
 
-    <!-- Firebase SDKs - Fixed Imports for production -->
+    <!-- Firebase SDKs -->
     <script type="module">
         import { initializeApp } from "https://www.gstatic.com/firebasejs/11.1.0/firebase-app.js";
         import { getAuth, signInAnonymously, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/11.1.0/firebase-auth.js";
@@ -88,11 +111,11 @@
         const auth = getAuth(app);
         const db = getFirestore(app);
 
-        // Global access for React
+        // Exportar a window para React
         window.fb = { db, auth, appId, doc, setDoc, onSnapshot, updateDoc, collection, deleteDoc, signInAnonymously, onAuthStateChanged };
     </script>
 
-    <!-- UI Libraries -->
+    <!-- React & Babel -->
     <script src="https://unpkg.com/react@18/umd/react.production.min.js"></script>
     <script src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js"></script>
     <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
@@ -115,64 +138,64 @@
                 products: []
             });
 
-            // Authentication
+            // 1. Manejo de Autenticación
             useEffect(() => {
-                const init = async () => {
+                const initAuth = async () => {
+                    if (!window.fb) return;
                     try {
-                        if (window.fb) {
-                            await window.fb.signInAnonymously(window.fb.auth);
-                            window.fb.onAuthStateChanged(window.fb.auth, setUser);
-                        }
-                    } catch (e) { console.error("Auth failed", e); }
+                        await window.fb.signInAnonymously(window.fb.auth);
+                        window.fb.onAuthStateChanged(window.fb.auth, setUser);
+                    } catch (e) { console.error("Auth Error", e); }
                 };
-                init();
+                initAuth();
             }, []);
 
-            // Data Sync
+            // 2. Sincronización de Datos en Tiempo Real
             useEffect(() => {
                 if (!user || !window.fb) return;
 
+                // Configuración general
                 const settingsRef = window.fb.doc(window.fb.db, 'artifacts', window.fb.appId, 'public', 'data', 'configuracion', 'general');
-                const unsubsSettings = window.fb.onSnapshot(settingsRef, (snap) => {
+                const unsubSettings = window.fb.onSnapshot(settingsRef, (snap) => {
                     if (snap.exists()) {
                         setData(prev => ({ ...prev, ...snap.data() }));
                     } else {
-                        // Create initial if missing
                         window.fb.setDoc(settingsRef, { rate: 62.00, settings: data.settings });
                     }
-                }, (err) => console.log("Settings error", err));
+                });
 
+                // Productos
                 const prodsRef = window.fb.collection(window.fb.db, 'artifacts', window.fb.appId, 'public', 'data', 'productos');
-                const unsubsProds = window.fb.onSnapshot(prodsRef, (snap) => {
-                    const prods = snap.docs.map(d => ({ id: d.id, ...d.data() }));
-                    setData(prev => ({ ...prev, products: prods }));
+                const unsubProds = window.fb.onSnapshot(prodsRef, (snap) => {
+                    const list = snap.docs.map(d => ({ id: d.id, ...d.data() }));
+                    setData(prev => ({ ...prev, products: list }));
                     setLoading(false);
-                }, (err) => console.log("Products error", err));
+                });
 
-                return () => { unsubsSettings(); unsubsProds(); };
+                return () => { unsubSettings(); unsubProds(); };
             }, [user]);
 
-            const fetchAutoRate = async () => {
-                try {
-                    const res = await fetch('https://pydolarvenezuela-api.vercel.app/api/v1/dollar?page=bcv');
-                    const json = await res.json();
-                    const bcv = json.monitors.bcv.price;
-                    if(bcv) updateSettings({ rate: parseFloat(bcv) });
-                } catch (e) { alert("No se pudo obtener la tasa automáticamente. Intenta manual."); }
-            };
-
-            const updateSettings = async (fields) => {
-                if (!window.fb) return;
+            // 3. Funciones de actualización
+            const updateGlobal = async (fields) => {
                 const ref = window.fb.doc(window.fb.db, 'artifacts', window.fb.appId, 'public', 'data', 'configuracion', 'general');
                 await window.fb.updateDoc(ref, fields);
             };
 
-            const updateProd = async (id, fields) => {
+            const updateProduct = async (id, fields) => {
                 const ref = window.fb.doc(window.fb.db, 'artifacts', window.fb.appId, 'public', 'data', 'productos', id);
                 await window.fb.updateDoc(ref, fields);
             };
 
-            const handleFileUpload = (e, callback) => {
+            const fetchBCV = async () => {
+                try {
+                    const res = await fetch('https://pydolarvenezuela-api.vercel.app/api/v1/dollar?page=bcv');
+                    const json = await res.json();
+                    const price = json.monitors.bcv.price;
+                    if(price) updateGlobal({ rate: parseFloat(price) });
+                } catch (e) { alert("Error al conectar con la API de tasa."); }
+            };
+
+            const handleImageFile = (e, callback) => {
                 const file = e.target.files[0];
                 if (file) {
                     const reader = new FileReader();
@@ -183,60 +206,63 @@
 
             if (loading) return (
                 <div className="h-screen flex flex-col items-center justify-center bg-[#020617]">
-                    <div className="w-12 h-12 border-4 border-blue-600 border-t-transparent rounded-full animate-spin mb-4"></div>
-                    <p className="text-blue-500 font-bold tracking-[0.3em] text-xs uppercase">Sincronizando Tienda...</p>
+                    <div className="w-10 h-10 border-4 border-blue-600 border-t-transparent rounded-full animate-spin mb-6"></div>
+                    <p className="text-blue-500 font-bold tracking-[0.4em] text-[10px] uppercase animate-pulse">Cargando Tavo Store...</p>
                 </div>
             );
 
             return (
-                <div className="min-h-screen pb-20">
-                    {/* Navigation */}
+                <div className="min-h-screen">
+                    {/* Barra de Navegación */}
                     <nav className="fixed top-0 w-full z-50 premium-glass px-6 py-4 flex justify-between items-center border-b border-white/5">
                         <div className="flex items-center gap-3 cursor-pointer" onClick={() => setView('store')}>
-                            <div className="w-9 h-9 bg-blue-600 rounded-xl flex items-center justify-center shadow-lg shadow-blue-600/20">
-                                <i className="fas fa-bolt text-white text-sm"></i>
+                            <div className="w-10 h-10 bg-blue-600 rounded-xl flex items-center justify-center shadow-lg shadow-blue-600/20">
+                                <i className="fas fa-bolt text-white"></i>
                             </div>
                             <span className="text-xl font-black tracking-tighter italic uppercase">{data.settings.logo}</span>
                         </div>
                         <button onClick={() => setView(view === 'admin' ? 'store' : 'admin')} className="bg-white/5 hover:bg-white/10 px-5 py-2 rounded-full text-[10px] font-bold uppercase tracking-widest transition-all border border-white/5">
-                            {view === 'admin' ? 'Volver' : 'Panel Admin'}
+                            {view === 'admin' ? <><i className="fas fa-arrow-left mr-2"></i>Tienda</> : <><i className="fas fa-cog mr-2"></i>Admin</>}
                         </button>
                     </nav>
 
                     {view === 'store' ? (
                         <div className="fade-in pt-16">
-                            <header className="relative h-[50vh] flex items-center justify-center">
-                                <img src={data.settings.banner} className="absolute inset-0 w-full h-full object-cover opacity-30" />
-                                <div className="absolute inset-0 bg-gradient-to-t from-[#020617] via-transparent to-transparent"></div>
+                            {/* Hero Header */}
+                            <header className="relative h-[55vh] flex items-center justify-center">
+                                <img src={data.settings.banner} className="absolute inset-0 w-full h-full object-cover opacity-40" />
+                                <div className="absolute inset-0 bg-gradient-to-t from-[#020617] via-[#020617]/40 to-transparent"></div>
                                 <div className="relative text-center px-6">
-                                    <h1 className="text-6xl md:text-9xl font-black italic tracking-tighter leading-none mb-4 uppercase">{data.settings.logo}</h1>
-                                    <div className="inline-flex items-center gap-3 bg-blue-600/10 border border-blue-500/20 px-6 py-2 rounded-2xl backdrop-blur-md">
-                                        <span className="font-bold text-sm text-slate-300">Tasa BCV: <span className="text-white">Bs. {data.rate.toFixed(2)}</span></span>
+                                    <h1 className="text-7xl md:text-[9rem] font-black italic tracking-tighter leading-none mb-6 uppercase animate-float">{data.settings.logo}</h1>
+                                    <div className="inline-flex items-center gap-3 bg-blue-600/20 border border-blue-500/30 px-6 py-3 rounded-2xl backdrop-blur-xl">
+                                        <i className="fas fa-university text-blue-400"></i>
+                                        <span className="font-bold text-sm tracking-tight">Tasa BCV: <span className="text-white">Bs. {data.rate.toFixed(2)}</span></span>
                                     </div>
                                 </div>
                             </header>
 
-                            <div className="max-w-7xl mx-auto px-6 grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-8 -mt-10 relative z-10">
+                            {/* Rejilla de Productos */}
+                            <div className="max-w-7xl mx-auto px-6 grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-10 -mt-16 relative z-10 pb-40">
                                 {data.products.map(p => (
-                                    <div key={p.id} className="product-card premium-glass rounded-[2.5rem] overflow-hidden">
-                                        <div className="aspect-[4/5] relative">
-                                            <img src={p.img || 'https://placehold.co/400x500/1e293b/fff?text=TavoStore'} className="w-full h-full object-cover" />
-                                            <div className={`absolute top-5 left-5 px-4 py-1.5 rounded-full text-[8px] font-black uppercase tracking-widest ${p.status === 'stock' ? 'bg-green-500/20 text-green-400' : 'bg-amber-500/20 text-amber-400'}`}>
+                                    <div key={p.id} className="product-card premium-glass rounded-[2.5rem] overflow-hidden group">
+                                        <div className="aspect-[4/5] relative overflow-hidden">
+                                            <img src={p.img || 'https://placehold.co/400x500/1e293b/fff?text=No+Image'} className="w-full h-full object-cover transition-transform duration-700 group-hover:scale-110" />
+                                            <div className={`absolute top-6 left-6 px-4 py-1.5 rounded-full text-[9px] font-black uppercase tracking-widest ${p.status === 'stock' ? 'bg-green-500/20 text-green-400 border border-green-500/20' : 'bg-amber-500/20 text-amber-400 border border-amber-500/20'}`}>
                                                 {p.status === 'stock' ? 'En Stock' : 'Por Encargo'}
                                             </div>
                                         </div>
                                         <div className="p-8">
-                                            <h3 className="text-lg font-bold mb-4 line-clamp-1 uppercase">{p.name}</h3>
+                                            <h3 className="text-xl font-bold mb-4 line-clamp-1 uppercase">{p.name}</h3>
                                             <div className="flex justify-between items-end">
                                                 <div>
-                                                    <p className="text-3xl font-black italic">${p.price}</p>
-                                                    <p className="text-[10px] text-slate-500 font-bold uppercase">Bs. {(p.price * data.rate).toLocaleString('es-VE')}</p>
+                                                    <p className="text-3xl font-black italic text-white">${p.price}</p>
+                                                    <p className="text-[10px] text-slate-500 font-bold uppercase tracking-tight">Bs. {(p.price * data.rate).toLocaleString('es-VE')}</p>
                                                 </div>
                                                 <button 
                                                     onClick={() => window.open(`https://wa.me/${data.settings.whatsapp}?text=Hola! 👋 Me interesa el artículo: ${p.name}`)}
-                                                    className="bg-blue-600 hover:bg-blue-500 text-white w-12 h-12 rounded-2xl flex items-center justify-center transition-all shadow-lg shadow-blue-600/30"
+                                                    className="bg-blue-600 hover:bg-blue-500 text-white w-14 h-14 rounded-2xl flex items-center justify-center transition-all shadow-lg shadow-blue-600/30 active:scale-90"
                                                 >
-                                                    <i className="fab fa-whatsapp text-xl"></i>
+                                                    <i className="fab fa-whatsapp text-2xl"></i>
                                                 </button>
                                             </div>
                                         </div>
@@ -248,71 +274,99 @@
                         <div className="max-w-5xl mx-auto px-6 py-32 fade-in">
                             {!isAdmin ? (
                                 <div className="h-[60vh] flex items-center justify-center">
-                                    <div className="premium-glass p-12 rounded-[3rem] w-full max-w-sm text-center">
-                                        <h2 className="text-[10px] font-black uppercase tracking-widest mb-8 text-slate-500">Security Access</h2>
-                                        <input type="password" placeholder="Clave" className="input-elegant text-center mb-6" onKeyDown={e => e.key === 'Enter' && e.target.value === 'tavo2026' && setIsAdmin(true)} />
-                                        <button onClick={(e) => { 
-                                            const val = e.target.previousSibling.value;
-                                            if(val === 'tavo2026') setIsAdmin(true);
-                                            else alert("Incorrecto");
-                                        }} className="w-full bg-blue-600 py-4 rounded-2xl font-black uppercase text-[10px] tracking-widest">Desbloquear</button>
+                                    <div className="premium-glass p-12 rounded-[3.5rem] w-full max-w-sm text-center">
+                                        <div className="w-16 h-16 bg-blue-600/20 rounded-2xl flex items-center justify-center mx-auto mb-8">
+                                            <i className="fas fa-shield-alt text-blue-500 text-2xl"></i>
+                                        </div>
+                                        <h2 className="text-[10px] font-black uppercase tracking-[0.3em] mb-8 text-slate-500">Panel de Control</h2>
+                                        <input type="password" placeholder="Contraseña Admin" className="input-elegant text-center mb-6" onKeyDown={e => e.key === 'Enter' && e.target.value === 'tavo2026' && setIsAdmin(true)} />
+                                        <button onClick={(e) => {
+                                            const v = e.target.previousSibling.value;
+                                            v === 'tavo2026' ? setIsAdmin(true) : alert("Acceso denegado");
+                                        }} className="w-full bg-blue-600 py-4 rounded-2xl font-black uppercase text-[10px] tracking-widest shadow-xl shadow-blue-600/20 hover:bg-blue-500 transition-all">Acceder</button>
                                     </div>
                                 </div>
                             ) : (
                                 <div className="space-y-12">
-                                    <div className="flex justify-between items-center">
-                                        <h2 className="text-3xl font-black italic uppercase">Gestión de Tienda</h2>
+                                    <div className="flex flex-col md:flex-row justify-between items-start md:items-end gap-6 mb-8">
+                                        <div>
+                                            <h2 className="text-4xl font-black italic uppercase tracking-tighter">Panel de <span className="text-blue-500">Gestión</span></h2>
+                                            <p className="text-[10px] text-slate-500 font-bold uppercase tracking-widest mt-2">Sincronización Cloud Activada</p>
+                                        </div>
                                         <button onClick={async () => {
                                             const id = "p_" + Date.now();
-                                            await window.fb.setDoc(window.fb.doc(window.fb.db, 'artifacts', window.fb.appId, 'public', 'data', 'productos', id), { name: "Nuevo Producto", price: 0, img: "", status: "stock" });
-                                        }} className="bg-blue-600 px-8 py-3 rounded-2xl font-bold text-xs uppercase">Nuevo Item</button>
+                                            const ref = window.fb.doc(window.fb.db, 'artifacts', window.fb.appId, 'public', 'data', 'productos', id);
+                                            await window.fb.setDoc(ref, { name: "Nuevo Producto", price: 0, img: "", status: "stock" });
+                                        }} className="bg-blue-600 px-8 py-4 rounded-2xl font-black text-[10px] uppercase shadow-xl shadow-blue-600/20 hover:scale-105 transition-all">
+                                            <i className="fas fa-plus mr-2"></i> Añadir Artículo
+                                        </button>
                                     </div>
 
+                                    {/* Ajustes Rápidos */}
                                     <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-                                        <div className="premium-glass p-8 rounded-[2rem]">
-                                            <div className="flex justify-between mb-4"><label className="text-[9px] font-black uppercase text-slate-500">Tasa Dólar</label><button onClick={fetchAutoRate} className="text-blue-500 text-[9px] font-bold uppercase">Auto BCV</button></div>
-                                            <input type="number" step="0.01" className="input-elegant font-black text-xl" value={data.rate} onChange={e => updateSettings({ rate: parseFloat(e.target.value) || 0 })} />
+                                        <div className="premium-glass p-8 rounded-[2.5rem]">
+                                            <div className="flex justify-between items-center mb-4">
+                                                <label className="text-[9px] font-black uppercase text-slate-500">Tasa del Dólar</label>
+                                                <button onClick={fetchBCV} className="text-blue-500 text-[9px] font-bold uppercase hover:underline">Sincronizar BCV <i className="fas fa-sync-alt ml-1"></i></button>
+                                            </div>
+                                            <input type="number" step="0.01" className="input-elegant text-2xl font-black" value={data.rate} onChange={e => updateGlobal({ rate: parseFloat(e.target.value) || 0 })} />
                                         </div>
-                                        <div className="premium-glass p-8 rounded-[2rem]">
+                                        <div className="premium-glass p-8 rounded-[2.5rem]">
+                                            <label className="text-[9px] font-black uppercase text-slate-500 mb-4 block">WhatsApp Comercial</label>
+                                            <input className="input-elegant font-bold" value={data.settings.whatsapp} onChange={e => updateGlobal({ 'settings.whatsapp': e.target.value })} />
+                                        </div>
+                                        <div className="premium-glass p-8 rounded-[2.5rem]">
                                             <label className="text-[9px] font-black uppercase text-slate-500 mb-4 block">Nombre Tienda</label>
-                                            <input className="input-elegant font-bold" value={data.settings.logo} onChange={e => updateSettings({ 'settings.logo': e.target.value })} />
-                                        </div>
-                                        <div className="premium-glass p-8 rounded-[2rem]">
-                                            <label className="text-[9px] font-black uppercase text-slate-500 mb-4 block">WhatsApp (58...)</label>
-                                            <input className="input-elegant font-bold" value={data.settings.whatsapp} onChange={e => updateSettings({ 'settings.whatsapp': e.target.value })} />
+                                            <input className="input-elegant font-bold uppercase" value={data.settings.logo} onChange={e => updateGlobal({ 'settings.logo': e.target.value })} />
                                         </div>
                                     </div>
 
+                                    {/* Lista de Productos para Editar */}
                                     <div className="space-y-6">
-                                        <h3 className="text-xs font-black uppercase tracking-widest text-slate-500">Lista de Productos</h3>
+                                        <h3 className="text-[10px] font-black uppercase tracking-[0.3em] text-slate-600 ml-4">Inventario Actual</h3>
                                         {data.products.map(p => (
-                                            <div key={p.id} className="premium-glass p-6 rounded-3xl flex flex-col md:flex-row gap-6 items-center">
-                                                <div className="w-20 h-20 rounded-2xl overflow-hidden bg-black shrink-0 relative group">
-                                                    <img src={p.img || 'https://placehold.co/100'} className="w-full h-full object-cover" />
-                                                    <label className="absolute inset-0 bg-black/60 flex items-center justify-center opacity-0 group-hover:opacity-100 cursor-pointer">
-                                                        <i className="fas fa-camera"></i>
-                                                        <input type="file" className="hidden" accept="image/*" onChange={e => handleFileUpload(e, (url) => updateProd(p.id, { img: url }))} />
+                                            <div key={p.id} className="premium-glass p-6 rounded-[2.5rem] flex flex-col md:flex-row gap-6 items-center border-white/5">
+                                                <div className="w-24 h-24 rounded-3xl overflow-hidden bg-black shrink-0 relative group">
+                                                    <img src={p.img || 'https://placehold.co/150'} className="w-full h-full object-cover" />
+                                                    <label className="absolute inset-0 bg-black/70 flex items-center justify-center opacity-0 group-hover:opacity-100 cursor-pointer transition-opacity">
+                                                        <i className="fas fa-camera text-white"></i>
+                                                        <input type="file" className="hidden" accept="image/*" onChange={e => handleImageFile(e, (url) => updateProduct(p.id, { img: url }))} />
                                                     </label>
                                                 </div>
                                                 <div className="flex-1 w-full space-y-4">
-                                                    <div className="flex gap-4">
-                                                        <input className="input-elegant flex-1 font-bold uppercase text-xs" value={p.name} onChange={e => updateProd(p.id, { name: e.target.value })} />
-                                                        <select className="input-elegant w-40 text-[10px] font-bold" value={p.status} onChange={e => updateProd(p.id, { status: e.target.value })}>
-                                                            <option value="stock">EN STOCK</option>
-                                                            <option value="order">POR ENCARGO</option>
+                                                    <div className="flex flex-col md:flex-row gap-4">
+                                                        <input className="input-elegant flex-[2] font-bold uppercase" placeholder="Nombre del producto" value={p.name} onChange={e => updateProduct(p.id, { name: e.target.value })} />
+                                                        <select className="input-elegant flex-1 text-[10px] font-black uppercase" value={p.status} onChange={e => updateProduct(p.id, { status: e.target.value })}>
+                                                            <option value="stock">✅ En Stock</option>
+                                                            <option value="order">⏳ Por Encargo</option>
                                                         </select>
                                                     </div>
-                                                    <div className="flex gap-4">
-                                                        <input className="input-elegant flex-1 text-[10px] text-slate-500" value={p.img} placeholder="URL Imagen" onChange={e => updateProd(p.id, { img: e.target.value })} />
-                                                        <div className="flex items-center gap-2 bg-black/40 px-4 rounded-xl border border-white/5">
-                                                            <span className="text-blue-500 font-black">$</span>
-                                                            <input type="number" className="bg-transparent outline-none w-16 font-black" value={p.price} onChange={e => updateProd(p.id, { price: parseFloat(e.target.value) || 0 })} />
+                                                    <div className="flex flex-col md:flex-row gap-4">
+                                                        <input className="input-elegant flex-[2] text-[10px] text-slate-400" placeholder="URL de la imagen (opcional)" value={p.img} onChange={e => updateProduct(p.id, { img: e.target.value })} />
+                                                        <div className="flex-1 flex gap-3">
+                                                            <div className="flex items-center gap-3 bg-black/40 px-5 rounded-2xl border border-white/10 w-full">
+                                                                <span className="text-blue-500 font-black">$</span>
+                                                                <input type="number" className="bg-transparent outline-none w-full font-black text-lg" value={p.price} onChange={e => updateProduct(p.id, { price: parseFloat(e.target.value) || 0 })} />
+                                                            </div>
+                                                            <button onClick={() => { if(confirm("¿Eliminar producto?")) window.fb.deleteDoc(window.fb.doc(window.fb.db, 'artifacts', window.fb.appId, 'public', 'data', 'productos', p.id)) }} className="bg-red-500/10 text-red-500 w-14 h-14 rounded-2xl flex items-center justify-center hover:bg-red-500 hover:text-white transition-all">
+                                                                <i className="fas fa-trash-alt"></i>
+                                                            </button>
                                                         </div>
-                                                        <button onClick={() => window.fb.deleteDoc(window.fb.doc(window.fb.db, 'artifacts', window.fb.appId, 'public', 'data', 'productos', p.id))} className="text-red-500 px-4 hover:bg-red-500/10 rounded-xl"><i className="fas fa-trash"></i></button>
                                                     </div>
                                                 </div>
                                             </div>
-                                               );
+                                        ))}
+                                    </div>
+                                </div>
+                            )}
+                        </div>
+                    )}
+
+                    <footer className="fixed bottom-6 left-1/2 -translate-x-1/2 z-50 px-10 py-3 bg-white/5 backdrop-blur-3xl rounded-full border border-white/5 text-[9px] font-black uppercase tracking-[0.4em] text-slate-600 shadow-2xl">
+                        © 2026 {data.settings.logo} • Cloud Solution
+                    </footer>
+                </div>
+            );
         };
 
         const root = ReactDOM.createRoot(document.getElementById('root'));
@@ -320,4 +374,4 @@
     </script>
 </body>
 </html>
-                                    
+
