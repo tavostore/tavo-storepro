@@ -4,74 +4,42 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Tavo Store | Cloud Edition</title>
-    
     <script src="https://cdn.tailwindcss.com"></script>
     <style>
         @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;700;900&display=swap');
-        body { 
-            font-family: 'Inter', sans-serif; 
-            background-color: #09090b;
-            color: #ffffff;
-            margin: 0;
-            overflow-x: hidden;
-        }
-        .glass-card {
-            background: rgba(24, 24, 27, 0.6);
-            backdrop-filter: blur(12px);
-            border: 1px solid rgba(255, 255, 255, 0.08);
-            transition: all 0.3s ease;
-        }
-        .admin-input {
-            background: rgba(0, 0, 0, 0.4);
-            border: 1px solid rgba(255, 255, 255, 0.1);
-            border-radius: 0.75rem;
-            padding: 0.6rem 1rem;
-            color: white;
-            width: 100%;
-            outline: none;
-            font-size: 14px;
-        }
+        body { font-family: 'Inter', sans-serif; background-color: #09090b; color: #ffffff; margin: 0; }
+        .glass-card { background: rgba(24, 24, 27, 0.6); backdrop-filter: blur(12px); border: 1px solid rgba(255, 255, 255, 0.08); transition: all 0.3s ease; }
+        .admin-input { background: rgba(0, 0, 0, 0.4); border: 1px solid rgba(255, 255, 255, 0.1); border-radius: 0.75rem; padding: 0.6rem 1rem; color: white; width: 100%; outline: none; font-size: 14px; }
         .admin-input:focus { border-color: #3b82f6; }
-        .badge-stock { background: rgba(34, 197, 94, 0.15); color: #4ade80; border: 1px solid rgba(34, 197, 94, 0.2); }
-        .badge-order { background: rgba(249, 115, 22, 0.15); color: #fb923c; border: 1px solid rgba(249, 115, 22, 0.2); }
-        
-        @keyframes fadeIn {
-            from { opacity: 0; transform: translateY(10px); }
-            to { opacity: 1; transform: translateY(0); }
-        }
+        @keyframes fadeIn { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: translateY(0); } }
         .fade-in { animation: fadeIn 0.6s ease forwards; }
     </style>
 </head>
 <body>
     <div id="root"></div>
 
-    <!-- Firebase SDKs -->
     <script type="module">
         import { initializeApp } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-app.js";
         import { getAuth, signInAnonymously, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-auth.js";
-        import { getFirestore, doc, setDoc, onSnapshot, updateDoc, collection } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
+        import { getFirestore, doc, setDoc, onSnapshot, updateDoc, collection, getDocs } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
 
-        // CONFIGURACIÓN REAL DE TAVOSTORE
         const firebaseConfig = {
             apiKey: "AIzaSyBQwVbcCO2GHCHKL5EoEOG9Jo3ZAXGAy2o",
             authDomain: "tavostore-4dedf.firebaseapp.com",
             projectId: "tavostore-4dedf",
             storageBucket: "tavostore-4dedf.firebasestorage.app",
             messagingSenderId: "265905383641",
-            appId: "1:265905383641:web:92499c7fe2620f988f36c8",
-            measurementId: "G-QW93LN7FCS"
+            appId: "1:265905383641:web:92499c7fe2620f988f36c8"
         };
 
         const appId = "tavostore-main-app";
-        
         const app = initializeApp(firebaseConfig);
         const auth = getAuth(app);
         const db = getFirestore(app);
 
-        window.fb = { db, auth, appId, doc, setDoc, onSnapshot, updateDoc, collection, signInAnonymously, onAuthStateChanged };
+        window.fb = { db, auth, appId, doc, setDoc, onSnapshot, updateDoc, collection, getDocs, signInAnonymously, onAuthStateChanged };
     </script>
 
-    <!-- React & Babel -->
     <script src="https://unpkg.com/react@18/umd/react.production.min.js"></script>
     <script src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js"></script>
     <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
@@ -83,170 +51,114 @@
             const [user, setUser] = useState(null);
             const [view, setView] = useState('store');
             const [isLogged, setIsLogged] = useState(false);
-            const [data, setData] = useState(null);
+            const [data, setData] = useState({ rate: 62, settings: { logo: "TAVO STORE", whatsapp: "584249649769", banner: "https://images.unsplash.com/photo-1441986300917-64674bd600d8?q=80&w=2000" }, products: [] });
             const [loading, setLoading] = useState(true);
 
-            // 1. Iniciar Sesión
             useEffect(() => {
-                const initAuth = async () => {
-                    try {
-                        await window.fb.signInAnonymously(window.fb.auth);
-                    } catch (e) { console.error("Error de Auth:", e); }
-                };
-                initAuth();
-                const unsubscribe = window.fb.onAuthStateChanged(window.fb.auth, setUser);
-                return () => unsubscribe();
+                window.fb.signInAnonymously(window.fb.auth).catch(console.error);
+                window.fb.onAuthStateChanged(window.fb.auth, setUser);
             }, []);
 
-            // 2. Sincronizar con la Nube (Firestore)
             useEffect(() => {
                 if (!user) return;
-                
-                // Documento de ajustes principales
-                const docRef = window.fb.doc(window.fb.db, 'artifacts', window.fb.appId, 'public', 'data', 'settings', 'main');
 
-                const unsubscribe = window.fb.onSnapshot(docRef, (docSnap) => {
+                // 1. Escuchar Configuración (Tasa, Logo, etc)
+                const settingsRef = window.fb.doc(window.fb.db, 'artifacts', window.fb.appId, 'public', 'data', 'configuracion', 'general');
+                const unsubsSettings = window.fb.onSnapshot(settingsRef, (docSnap) => {
                     if (docSnap.exists()) {
-                        setData(docSnap.data());
+                        setData(prev => ({ ...prev, ...docSnap.data() }));
                     } else {
-                        // Crear datos iniciales si la nube está vacía
-                        const initialData = {
-                            rate: 62.00,
-                            settings: { 
-                                logo: "TAVO STORE", 
-                                whatsapp: "584249649769", 
-                                banner: "https://images.unsplash.com/photo-1441986300917-64674bd600d8?q=80&w=2000" 
-                            },
-                            products: [
-                                { id: 1, name: "Producto de Prueba", price: 10, img: "https://images.unsplash.com/photo-1523275335684-37898b6baf30?q=80&w=800", category: "Celulares", status: "stock" }
-                            ]
-                        };
-                        window.fb.setDoc(docRef, initialData);
+                        window.fb.setDoc(settingsRef, { rate: 62, settings: data.settings });
                     }
+                });
+
+                // 2. Escuchar Productos
+                const productsRef = window.fb.collection(window.fb.db, 'artifacts', window.fb.appId, 'public', 'data', 'productos');
+                const unsubsProducts = window.fb.onSnapshot(productsRef, (snap) => {
+                    const prods = snap.docs.map(d => ({ id: d.id, ...d.data() }));
+                    setData(prev => ({ ...prev, products: prods }));
                     setLoading(false);
                 });
 
-                return () => unsubscribe();
+                return () => { unsubsSettings(); unsubsProducts(); };
             }, [user]);
 
-            const updateData = async (fields) => {
-                const docRef = window.fb.doc(window.fb.db, 'artifacts', window.fb.appId, 'public', 'data', 'settings', 'main');
-                await window.fb.updateDoc(docRef, fields);
-            };
-
-            if (loading || !data) return (
-                <div className="h-screen flex items-center justify-center bg-[#09090b]">
-                    <div className="text-center">
-                        <div className="w-10 h-10 border-2 border-blue-500 border-t-transparent rounded-full animate-spin mx-auto mb-4"></div>
-                        <p className="text-[10px] font-black uppercase tracking-[0.3em] text-blue-500">Cargando Tienda...</p>
-                    </div>
-                </div>
-            );
+            if (loading) return <div className="h-screen flex items-center justify-center bg-[#09090b] text-blue-500 font-black uppercase tracking-widest animate-pulse">Cargando Tavo Store...</div>;
 
             const formatBs = (usd) => (usd * data.rate).toLocaleString('es-VE', { minimumFractionDigits: 2 });
 
             const StoreView = () => (
-                <div className="fade-in">
-                    <header className="relative h-[40vh] md:h-[60vh] flex items-center justify-center overflow-hidden">
-                        <img src={data.settings.banner} className="absolute inset-0 w-full h-full object-cover opacity-30" />
-                        <div className="absolute inset-0 bg-gradient-to-t from-[#09090b] to-transparent"></div>
-                        <div className="relative z-10 text-center px-4">
-                            <h1 className="text-5xl md:text-8xl font-black italic uppercase tracking-tighter mb-4">{data.settings.logo}</h1>
-                            <div className="inline-block bg-white/5 border border-white/10 px-4 py-2 rounded-full backdrop-blur-md">
-                                <span className="text-[10px] font-bold uppercase tracking-widest text-blue-400">Tasa: Bs. {data.rate.toFixed(2)}</span>
+                <div className="fade-in pb-20">
+                    <header className="relative h-[40vh] flex items-center justify-center overflow-hidden">
+                        <img src={data.settings.banner} className="absolute inset-0 w-full h-full object-cover opacity-20" />
+                        <div className="relative z-10 text-center">
+                            <h1 className="text-6xl md:text-8xl font-black italic uppercase tracking-tighter">{data.settings.logo}</h1>
+                            <div className="mt-4 bg-blue-600/20 border border-blue-500/30 px-4 py-1 rounded-full inline-block">
+                                <span className="text-[10px] font-bold text-blue-400">Tasa: Bs. {data.rate}</span>
                             </div>
                         </div>
                     </header>
 
-                    <main className="max-w-7xl mx-auto px-6 -mt-10 relative z-20 pb-20">
-                        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
-                            {data.products.map(p => (
-                                <div key={p.id} className="glass-card rounded-3xl overflow-hidden group">
-                                    <div className="aspect-[4/5] relative">
-                                        <img src={p.img} className="w-full h-full object-cover" />
-                                        <div className={`absolute top-4 left-4 px-3 py-1 rounded-full text-[8px] font-black uppercase ${p.status === 'stock' ? 'badge-stock' : 'badge-order'}`}>
-                                            {p.status === 'stock' ? 'Disponible' : 'Por Encargo'}
+                    <div className="max-w-6xl mx-auto px-6 grid grid-cols-1 md:grid-cols-3 gap-8 -mt-10 relative z-20">
+                        {data.products.map(p => (
+                            <div key={p.id} className="glass-card rounded-[2rem] overflow-hidden">
+                                <img src={p.img || 'https://placehold.co/400x500/000/fff?text=Producto'} className="w-full aspect-[4/5] object-cover" />
+                                <div className="p-6">
+                                    <h3 className="text-xl font-bold mb-4">{p.name}</h3>
+                                    <div className="flex justify-between items-end">
+                                        <div>
+                                            <p className="text-3xl font-black italic">${p.price}</p>
+                                            <p className="text-[10px] text-zinc-500 font-bold uppercase">Bs. {formatBs(p.price)}</p>
                                         </div>
-                                    </div>
-                                    <div className="p-6">
-                                        <h3 className="text-xl font-bold mb-4">{p.name}</h3>
-                                        <div className="flex justify-between items-center">
-                                            <div>
-                                                <p className="text-2xl font-black italic">${p.price}</p>
-                                                <p className="text-[9px] text-zinc-500 uppercase font-bold">Bs. {formatBs(p.price)}</p>
-                                            </div>
-                                            <button 
-                                                onClick={() => window.open(`https://wa.me/${data.settings.whatsapp}?text=Hola! Quiero comprar: ${p.name}`)}
-                                                className="bg-white text-black px-6 py-2 rounded-lg font-black text-[10px] uppercase hover:bg-blue-600 hover:text-white transition-colors"
-                                            >
-                                                Pedir
-                                            </button>
-                                        </div>
+                                        <button onClick={() => window.open(`https://wa.me/${data.settings.whatsapp}?text=Me interesa el ${p.name}`)} className="bg-white text-black px-6 py-2 rounded-xl font-black text-[10px] uppercase">Comprar</button>
                                     </div>
                                 </div>
-                            ))}
-                        </div>
-                    </main>
+                            </div>
+                        ))}
+                    </div>
                 </div>
             );
 
             const AdminView = () => {
                 const [pass, setPass] = useState("");
                 if (!isLogged) return (
-                    <div className="h-screen flex items-center justify-center px-6">
-                        <div className="glass-card p-10 rounded-3xl w-full max-w-xs text-center">
-                            <h2 className="text-xs font-black uppercase mb-6 tracking-widest">Admin Access</h2>
+                    <div className="h-screen flex items-center justify-center">
+                        <div className="glass-card p-10 rounded-[2rem] text-center w-80">
+                            <h2 className="text-[10px] font-black uppercase mb-6 text-zinc-500">Panel de Control</h2>
                             <input type="password" placeholder="Clave" className="admin-input mb-4 text-center" onChange={e => setPass(e.target.value)} />
-                            <button onClick={() => pass === "tavo2026" ? setIsLogged(true) : alert("Error")} className="w-full bg-blue-600 py-3 rounded-xl text-[10px] font-bold uppercase">Entrar</button>
+                            <button onClick={() => pass === "tavo2026" ? setIsLogged(true) : alert("Error")} className="w-full bg-blue-600 py-3 rounded-xl font-bold uppercase text-[10px]">Entrar</button>
                         </div>
                     </div>
                 );
 
+                const addProduct = async () => {
+                    const id = "prod_" + Date.now();
+                    await window.fb.setDoc(window.fb.doc(window.fb.db, 'artifacts', window.fb.appId, 'public', 'data', 'productos', id), { name: "Nuevo", price: 0, img: "", category: "Celulares", status: "stock" });
+                };
+
                 return (
-                    <div className="max-w-4xl mx-auto px-6 py-32 fade-in">
-                        <h2 className="text-3xl font-black uppercase mb-10">Panel de Control</h2>
-                        
-                        <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mb-12">
-                            <div className="glass-card p-6 rounded-2xl">
-                                <label className="text-[10px] font-bold uppercase text-zinc-500 block mb-2">Tasa del Dólar</label>
-                                <input type="number" className="admin-input" value={data.rate} onChange={e => updateData({ rate: parseFloat(e.target.value) || 0 })} />
-                            </div>
-                            <div className="glass-card p-6 rounded-2xl">
-                                <label className="text-[10px] font-bold uppercase text-zinc-500 block mb-2">WhatsApp (Ej: 58424...)</label>
-                                <input className="admin-input" value={data.settings.whatsapp} onChange={e => updateData({ 'settings.whatsapp': e.target.value })} />
-                            </div>
+                    <div className="max-w-3xl mx-auto p-10 fade-in pt-32">
+                        <div className="flex justify-between items-center mb-10">
+                            <h2 className="text-2xl font-black uppercase">Administración</h2>
+                            <button onClick={addProduct} className="bg-blue-600 px-6 py-2 rounded-xl text-[10px] font-bold uppercase">Añadir Producto</button>
                         </div>
 
-                        <div className="flex justify-between items-center mb-6">
-                            <h3 className="font-bold uppercase text-xs">Productos</h3>
-                            <button onClick={() => {
-                                const newP = { id: Date.now(), name: "Nuevo Producto", price: 0, img: "", status: "stock", category: "Celulares" };
-                                updateData({ products: [newP, ...data.products] });
-                            }} className="bg-blue-600 px-4 py-2 rounded-lg text-[10px] font-bold">Añadir</button>
+                        <div className="glass-card p-6 rounded-2xl mb-10 grid grid-cols-2 gap-4">
+                            <div>
+                                <label className="text-[9px] uppercase font-bold text-zinc-500 block mb-2">Tasa Dólar</label>
+                                <input type="number" className="admin-input" value={data.rate} onChange={e => window.fb.updateDoc(window.fb.doc(window.fb.db, 'artifacts', window.fb.appId, 'public', 'data', 'configuracion', 'general'), { rate: parseFloat(e.target.value) })} />
+                            </div>
+                            <div>
+                                <label className="text-[9px] uppercase font-bold text-zinc-500 block mb-2">WhatsApp</label>
+                                <input className="admin-input" value={data.settings.whatsapp} onChange={e => window.fb.updateDoc(window.fb.doc(window.fb.db, 'artifacts', window.fb.appId, 'public', 'data', 'configuracion', 'general'), { 'settings.whatsapp': e.target.value })} />
+                            </div>
                         </div>
 
                         <div className="space-y-4">
-                            {data.products.map((p, i) => (
-                                <div key={p.id} className="glass-card p-4 rounded-2xl flex flex-col md:flex-row gap-4 items-center">
-                                    <div className="w-16 h-16 bg-black rounded-lg overflow-hidden shrink-0">
-                                        <img src={p.img} className="w-full h-full object-cover" />
-                                    </div>
-                                    <div className="flex-1 space-y-2 w-full">
-                                        <input className="admin-input" value={p.name} onChange={e => {
-                                            const copy = [...data.products]; copy[i].name = e.target.value; updateData({ products: copy });
-                                        }} />
-                                        <input className="text-[10px] bg-transparent outline-none w-full text-zinc-500" value={p.img} placeholder="URL Imagen" onChange={e => {
-                                            const copy = [...data.products]; copy[i].img = e.target.value; updateData({ products: copy });
-                                        }} />
-                                    </div>
-                                    <div className="flex gap-2 w-full md:w-auto">
-                                        <input type="number" className="admin-input w-20" value={p.price} onChange={e => {
-                                            const copy = [...data.products]; copy[i].price = parseFloat(e.target.value) || 0; updateData({ products: copy });
-                                        }} />
-                                        <button onClick={() => {
-                                            if(confirm("Eliminar?")) updateData({ products: data.products.filter(item => item.id !== p.id) })
-                                        }} className="text-red-500 p-2">✕</button>
-                                    </div>
+                            {data.products.map(p => (
+                                <div key={p.id} className="glass-card p-4 rounded-xl flex items-center gap-4">
+                                    <input className="admin-input flex-1" value={p.name} onChange={e => window.fb.updateDoc(window.fb.doc(window.fb.db, 'artifacts', window.fb.appId, 'public', 'data', 'productos', p.id), { name: e.target.value })} />
+                                    <input type="number" className="admin-input w-24" value={p.price} onChange={e => window.fb.updateDoc(window.fb.doc(window.fb.db, 'artifacts', window.fb.appId, 'public', 'data', 'productos', p.id), { price: parseFloat(e.target.value) })} />
                                 </div>
                             ))}
                         </div>
@@ -255,16 +167,13 @@
             };
 
             return (
-                <div>
-                    <nav className="fixed top-0 w-full z-[100] bg-black/50 backdrop-blur-lg border-b border-white/5 px-6 py-4 flex justify-between items-center">
-                        <span className="font-black italic text-lg uppercase tracking-tighter cursor-pointer" onClick={() => setView('store')}>{data.settings.logo}</span>
-                        <button onClick={() => setView(view === 'admin' ? 'store' : 'admin')} className="text-[8px] font-black uppercase tracking-widest bg-white/5 border border-white/10 px-4 py-2 rounded-full">
-                            {view === 'admin' ? 'Volver' : 'Admin'}
-                        </button>
+                <>
+                    <nav className="fixed top-0 w-full z-50 bg-black/60 backdrop-blur-md p-6 flex justify-between items-center border-b border-white/5">
+                        <span className="font-black italic text-xl uppercase cursor-pointer" onClick={() => setView('store')}>{data.settings.logo}</span>
+                        <button onClick={() => setView(view === 'admin' ? 'store' : 'admin')} className="text-[9px] font-bold uppercase border border-white/10 px-4 py-2 rounded-full">{view === 'admin' ? 'Tienda' : 'Admin'}</button>
                     </nav>
-
                     {view === 'store' ? <StoreView /> : <AdminView />}
-                </div>
+                </>
             );
         };
 
