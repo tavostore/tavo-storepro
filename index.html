@@ -121,7 +121,7 @@
     <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
 
     <script type="text/babel">
-        const { useState, useEffect, useCallback } = React;
+        const { useState, useEffect } = React;
 
         const App = () => {
             const [user, setUser] = useState(null);
@@ -291,7 +291,7 @@
                                     <div className="flex flex-col md:flex-row justify-between items-start md:items-end gap-6 mb-8">
                                         <div>
                                             <h2 className="text-4xl font-black italic uppercase tracking-tighter">Panel de <span className="text-blue-500">Gestión</span></h2>
-                                            <p className="text-[10px] text-slate-500 font-bold uppercase tracking-widest mt-2">Sincronización Cloud Activada</p>
+                                            <p className="text-[10px] text-slate-500 font-bold uppercase tracking-widest mt-2">Personalización en Vivo</p>
                                         </div>
                                         <button onClick={async () => {
                                             const id = "p_" + Date.now();
@@ -303,8 +303,8 @@
                                     </div>
 
                                     {/* Ajustes Rápidos */}
-                                    <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-                                        <div className="premium-glass p-8 rounded-[2.5rem]">
+                                    <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                                        <div className="premium-glass p-8 rounded-[2.5rem] flex flex-col justify-between">
                                             <div className="flex justify-between items-center mb-4">
                                                 <label className="text-[9px] font-black uppercase text-slate-500">Tasa del Dólar</label>
                                                 <button onClick={fetchBCV} className="text-blue-500 text-[9px] font-bold uppercase hover:underline">Sincronizar BCV <i className="fas fa-sync-alt ml-1"></i></button>
@@ -315,9 +315,25 @@
                                             <label className="text-[9px] font-black uppercase text-slate-500 mb-4 block">WhatsApp Comercial</label>
                                             <input className="input-elegant font-bold" value={data.settings.whatsapp} onChange={e => updateGlobal({ 'settings.whatsapp': e.target.value })} />
                                         </div>
+                                    </div>
+
+                                    {/* Configuración de Diseño y Estética */}
+                                    <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                                         <div className="premium-glass p-8 rounded-[2.5rem]">
-                                            <label className="text-[9px] font-black uppercase text-slate-500 mb-4 block">Nombre Tienda</label>
-                                            <input className="input-elegant font-bold uppercase" value={data.settings.logo} onChange={e => updateGlobal({ 'settings.logo': e.target.value })} />
+                                            <label className="text-[9px] font-black uppercase text-slate-500 mb-4 block">Nombre del Logo / Tienda</label>
+                                            <input className="input-elegant font-black uppercase text-lg mb-4" value={data.settings.logo} onChange={e => updateGlobal({ 'settings.logo': e.target.value })} />
+                                            <p className="text-[9px] text-slate-500 italic uppercase">Este nombre se muestra en la barra superior y el encabezado principal.</p>
+                                        </div>
+                                        <div className="premium-glass p-8 rounded-[2.5rem]">
+                                            <label className="text-[9px] font-black uppercase text-slate-500 mb-4 block">Fondo de Encabezado (Banner)</label>
+                                            <div className="flex gap-3 mb-4">
+                                                <input className="input-elegant text-[10px] flex-1" placeholder="Pega URL del fondo aquí" value={data.settings.banner} onChange={e => updateGlobal({ 'settings.banner': e.target.value })} />
+                                                <label className="bg-blue-600 w-12 h-12 rounded-xl flex items-center justify-center cursor-pointer shrink-0 shadow-lg shadow-blue-600/20">
+                                                    <i className="fas fa-image text-white"></i>
+                                                    <input type="file" className="hidden" accept="image/*" onChange={e => handleImageFile(e, (url) => updateGlobal({ 'settings.banner': url }))} />
+                                                </label>
+                                            </div>
+                                            <p className="text-[9px] text-slate-500 italic uppercase">Recomendado: Imágenes horizontales de alta resolución.</p>
                                         </div>
                                     </div>
 
@@ -374,6 +390,3 @@
     </script>
 </body>
 </html>
-
-
-
