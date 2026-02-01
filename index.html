@@ -399,14 +399,14 @@
                                                 <div className="file-upload-btn" onClick={() => document.getElementById('bgInput').click()}>
                                                     Seleccionar Imagen de Fondo
                                                 </div>
-                                                <input id="bgInput" type="file" accept="image/*" className="hidden" onChange={e => handleFileUpload(e, (base64) => window.fb.updateDoc(window.fb.doc(window.fb.db, 'artifacts', window.fb.appId, 'public', 'data', 'configuracion', 'general'), { 'settings.background': base64 }))} />
+                                                <input id="bgInput" type="file" className="hidden" onChange={e => handleFileUpload(e, (base64) => window.fb.updateDoc(window.fb.doc(window.fb.db, 'artifacts', window.fb.appId, 'public', 'data', 'configuracion', 'general'), { 'settings.background': base64 }))} />
                                             </div>
                                             <div>
                                                 <label className="text-[9px] font-black text-slate-500 uppercase block mb-3">Cambiar Banner (Local)</label>
                                                 <div className="file-upload-btn" onClick={() => document.getElementById('bannerInput').click()}>
                                                     Seleccionar Imagen de Banner
                                                 </div>
-                                                <input id="bannerInput" type="file" accept="image/*" className="hidden" onChange={e => handleFileUpload(e, (base64) => window.fb.updateDoc(window.fb.doc(window.fb.db, 'artifacts', window.fb.appId, 'public', 'data', 'configuracion', 'general'), { 'settings.banner': base64 }))} />
+                                                <input id="bannerInput" type="file" className="hidden" onChange={e => handleFileUpload(e, (base64) => window.fb.updateDoc(window.fb.doc(window.fb.db, 'artifacts', window.fb.appId, 'public', 'data', 'configuracion', 'general'), { 'settings.banner': base64 }))} />
                                             </div>
                                         </div>
                                     </div>
@@ -429,7 +429,7 @@
                                                         <div className="absolute inset-0 bg-black/50 opacity-0 group-hover:opacity-100 flex items-center justify-center rounded-2xl transition-opacity">
                                                             <i className="fas fa-camera text-xs"></i>
                                                         </div>
-                                                        <input id={`file_${p.id}`} type="file" accept="image/*" className="hidden" onChange={e => handleFileUpload(e, (base64) => window.fb.updateDoc(window.fb.doc(window.fb.db, 'artifacts', window.fb.appId, 'public', 'data', 'productos', p.id), { img: base64 }))} />
+                                                        <input id={`file_${p.id}`} type="file" className="hidden" onChange={e => handleFileUpload(e, (base64) => window.fb.updateDoc(window.fb.doc(window.fb.db, 'artifacts', window.fb.appId, 'public', 'data', 'productos', p.id), { img: base64 }))} />
                                                     </div>
                                                     <div className="flex-1 min-w-[200px] space-y-3">
                                                         <input className="input-elegant text-[11px] font-bold" placeholder="Nombre" value={p.name} onChange={e => window.fb.updateDoc(window.fb.doc(window.fb.db, 'artifacts', window.fb.appId, 'public', 'data', 'productos', p.id), { name: e.target.value })} />
@@ -517,6 +517,7 @@
     </script>
 </body>
 </html>
+
 
 
 
