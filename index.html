@@ -200,6 +200,64 @@
                 reader.readAsDataURL(file);
             };
 
+            // Convierte imágenes muy grandes a WebP optimizado para evitar errores de carga/guardado
+            const processFlexibleImageUpload = (e, callback, options = {}) => {
+                const file = e.target.files[0];
+                if (!file) return;
+
+                const {
+                    maxWidth = 1920,
+                    maxHeight = 1080,
+                    quality = 0.85
+                } = options;
+
+                const objectUrl = URL.createObjectURL(file);
+                const img = new Image();
+
+                img.onload = () => {
+                    const canvas = document.createElement('canvas');
+                    const ctx = canvas.getContext('2d');
+                    if (!ctx) {
+                        URL.revokeObjectURL(objectUrl);
+                        handleFileUpload(e, callback);
+                        return;
+                    }
+
+                    const widthRatio = maxWidth / img.width;
+                    const heightRatio = maxHeight / img.height;
+                    const ratio = Math.min(widthRatio, heightRatio, 1);
+
+                    canvas.width = Math.round(img.width * ratio);
+                    canvas.height = Math.round(img.height * ratio);
+
+                    ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
+                    callback(canvas.toDataURL('image/webp', quality));
+
+                    URL.revokeObjectURL(objectUrl);
+                    e.target.value = '';
+                };
+
+                img.onerror = () => {
+                    URL.revokeObjectURL(objectUrl);
+                    handleFileUpload(e, callback);
+                    e.target.value = '';
+                };
+
+                img.src = objectUrl;
+            };
+
+            const normalizeRateValue = (value) => {
+                if (typeof value === 'number') return value;
+                if (typeof value !== 'string') return NaN;
+
+                const cleaned = value
+                    .replace(/\s/g, '')
+                    .replace(/\./g, '')
+                    .replace(',', '.');
+
+                return parseFloat(cleaned);
+            };
+
             const addToCart = (product) => {
                 setCart(prev => {
                     const exists = prev.find(item => item.id === product.id);
@@ -373,8 +431,10 @@
                                         <button onClick={async () => {
                                             const res = await fetch('https://pydolarvenezuela-api.vercel.app/api/v1/dollar?page=bcv');
                                             const json = await res.json();
-                                            if(json.monitors?.bcv?.price) {
-                                                window.fb.updateDoc(window.fb.doc(window.fb.db, 'artifacts', window.fb.appId, 'public', 'data', 'configuracion', 'general'), { rate: json.monitors.bcv.price });
+                                            const parsedRate = normalizeRateValue(json.monitors?.bcv?.price);
+                                            if(Number.isFinite(parsedRate)) {
+                                                setData(prev => ({ ...prev, rate: parsedRate }));
+                                                window.fb.updateDoc(window.fb.doc(window.fb.db, 'artifacts', window.fb.appId, 'public', 'data', 'configuracion', 'general'), { rate: parsedRate });
                                             }
                                         }} className="bg-blue-600/10 border border-blue-500/20 text-blue-500 px-5 py-2.5 rounded-2xl text-[10px] font-black uppercase flex items-center gap-2">
                                             <i className="fas fa-sync-alt"></i> Sincronizar BCV
@@ -399,14 +459,14 @@
                                                 <div className="file-upload-btn" onClick={() => document.getElementById('bgInput').click()}>
                                                     Seleccionar Imagen de Fondo
                                                 </div>
-                                                <input id="bgInput" type="file" className="hidden" onChange={e => handleFileUpload(e, (base64) => window.fb.updateDoc(window.fb.doc(window.fb.db, 'artifacts', window.fb.appId, 'public', 'data', 'configuracion', 'general'), { 'settings.background': base64 }))} />
+                                                <input id="bgInput" type="file" accept="image/*" className="hidden" onChange={e => processFlexibleImageUpload(e, (base64) => window.fb.updateDoc(window.fb.doc(window.fb.db, 'artifacts', window.fb.appId, 'public', 'data', 'configuracion', 'general'), { 'settings.background': base64 }), { maxWidth: 2400, maxHeight: 2400, quality: 0.82 })} />
                                             </div>
                                             <div>
                                                 <label className="text-[9px] font-black text-slate-500 uppercase block mb-3">Cambiar Banner (Local)</label>
                                                 <div className="file-upload-btn" onClick={() => document.getElementById('bannerInput').click()}>
                                                     Seleccionar Imagen de Banner
                                                 </div>
-                                                <input id="bannerInput" type="file" className="hidden" onChange={e => handleFileUpload(e, (base64) => window.fb.updateDoc(window.fb.doc(window.fb.db, 'artifacts', window.fb.appId, 'public', 'data', 'configuracion', 'general'), { 'settings.banner': base64 }))} />
+                                                <input id="bannerInput" type="file" accept="image/*" className="hidden" onChange={e => processFlexibleImageUpload(e, (base64) => window.fb.updateDoc(window.fb.doc(window.fb.db, 'artifacts', window.fb.appId, 'public', 'data', 'configuracion', 'general'), { 'settings.banner': base64 }), { maxWidth: 2400, maxHeight: 1200, quality: 0.82 })} />
                                             </div>
                                         </div>
                                     </div>
