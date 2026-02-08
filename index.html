@@ -1,351 +1,583 @@
 <!DOCTYPE html>
 <html lang="es">
 <head>
-  <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>Tavo Store | Premium Cloud</title>
-  <meta name="description" content="Tienda rápida con sección principal editable y catálogo por clic." />
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Tavo Store | Premium Cloud</title>
+    
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <link rel="icon" type="image/png" href="https://i.ibb.co/MyKLSdJ3/1000975368.png">
+    
+    
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@300;400;600;800&display=swap');
+        
+        :root {
+            --primary: #3b82f6;
+            --bg: #020617;
+        }
 
-  <link rel="preconnect" href="https://cdn.tailwindcss.com" crossorigin>
-  <link rel="preconnect" href="https://www.gstatic.com" crossorigin>
-  <link rel="preconnect" href="https://unpkg.com" crossorigin>
-  <link rel="preconnect" href="https://cdnjs.cloudflare.com" crossorigin>
-  <script src="https://cdn.tailwindcss.com"></script>
-  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" />
+        body {
+            font-family: 'Plus Jakarta Sans', sans-serif;
+            background-color: var(--bg);
+            color: #f8fafc;
+            margin: 0;
+            overflow-x: hidden;
+            background-attachment: fixed;
+            background-size: cover;
+            background-position: center;
+        }
 
-  <style>
-    :root { --primary: #3b82f6; --bg: #020617; }
-    body {
-      font-family: Inter, system-ui, -apple-system, Segoe UI, Roboto, sans-serif;
-      background: var(--bg);
-      color: #f8fafc;
-      margin: 0;
-      overflow-x: hidden;
-    }
-    .premium-glass {
-      background: rgba(15, 23, 42, 0.74);
-      backdrop-filter: blur(18px);
-      border: 1px solid rgba(255, 255, 255, 0.08);
-      box-shadow: 0 20px 50px -20px rgba(0, 0, 0, 0.7);
-    }
-    .smooth-card {
-      transition: transform .25s ease, border-color .25s ease;
-      content-visibility: auto;
-      contain-intrinsic-size: 380px;
-    }
-    .smooth-card:hover { transform: translateY(-6px); border-color: rgba(59, 130, 246, .8); }
-    .input-elegant {
-      width: 100%; background: rgba(255,255,255,.04); border: 1px solid rgba(255,255,255,.12);
-      border-radius: 14px; padding: 11px 13px; color: #f8fafc; font-size: 13px; outline: none;
-    }
-    .input-elegant:focus { border-color: var(--primary); }
-    .cart-badge {
-      position: absolute; top: -6px; right: -6px; background: #ef4444; color: #fff;
-      border-radius: 999px; font-size: 10px; font-weight: 800; border: 2px solid var(--bg); padding: 1px 6px;
-    }
-    .active-tab { background: rgba(59, 130, 246, .25); border-color: rgba(59,130,246,.65); }
-  </style>
+        .premium-glass {
+            background: rgba(15, 23, 42, 0.75);
+            backdrop-filter: blur(25px);
+            border: 1px solid rgba(255, 255, 255, 0.08);
+            box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.5);
+        }
+
+        .product-card {
+            transition: all 0.4s cubic-bezier(0.4, 0, 0.2, 1);
+        }
+
+        .product-card:hover {
+            transform: translateY(-8px);
+            border-color: var(--primary);
+        }
+
+        .input-elegant {
+            background: rgba(0, 0, 0, 0.5);
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            border-radius: 0.8rem;
+            padding: 0.75rem 1rem;
+            color: white;
+            width: 100%;
+            outline: none;
+            transition: border-color 0.3s;
+        }
+
+        .input-elegant:focus {
+            border-color: var(--primary);
+        }
+
+        .fade-in {
+            animation: fadeIn 0.4s ease-out forwards;
+        }
+
+        @keyframes fadeIn {
+            from { opacity: 0; transform: translateY(10px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+
+        .cart-badge {
+            position: absolute;
+            top: -4px;
+            right: -4px;
+            background: #ef4444;
+            color: white;
+            font-size: 10px;
+            font-weight: 800;
+            padding: 2px 6px;
+            border-radius: 99px;
+            border: 2px solid var(--bg);
+        }
+
+        .ai-chat-window {
+            height: 480px;
+            width: 320px;
+            display: flex;
+            flex-direction: column;
+        }
+
+        .badge-finance {
+            background: linear-gradient(90deg, #3b82f6, #8b5cf6);
+            box-shadow: 0 4px 15px rgba(59, 130, 246, 0.4);
+        }
+
+        .file-upload-btn {
+            background: rgba(255, 255, 255, 0.05);
+            border: 1px dashed rgba(255, 255, 255, 0.2);
+            padding: 10px;
+            border-radius: 12px;
+            text-align: center;
+            cursor: pointer;
+            font-size: 10px;
+            font-weight: bold;
+            text-transform: uppercase;
+        }
+
+        ::-webkit-scrollbar { width: 6px; }
+        ::-webkit-scrollbar-thumb { background: #1e293b; border-radius: 10px; }
+    </style>
 </head>
-<body>
-  <div id="root"></div>
+<body id="body-bg">
+    <div id="root"></div>
 
-  <script type="module">
-    import { initializeApp } from "https://www.gstatic.com/firebasejs/11.1.0/firebase-app.js";
-    import { getAuth, onAuthStateChanged, signInAnonymously } from "https://www.gstatic.com/firebasejs/11.1.0/firebase-auth.js";
-    import { collection, deleteDoc, doc, getFirestore, onSnapshot, setDoc, updateDoc } from "https://www.gstatic.com/firebasejs/11.1.0/firebase-firestore.js";
+    <script type="module">
+        import { initializeApp } from "https://www.gstatic.com/firebasejs/11.1.0/firebase-app.js";
+        import { getAuth, signInAnonymously, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/11.1.0/firebase-auth.js";
+        import { getFirestore, doc, setDoc, onSnapshot, updateDoc, collection, deleteDoc } from "https://www.gstatic.com/firebasejs/11.1.0/firebase-firestore.js";
 
-    const firebaseConfig = {
-      apiKey: "AIzaSyBQwVbcCO2GHCHKL5EoEOG9Jo3ZAXGAy2o",
-      authDomain: "tavostore-4dedf.firebaseapp.com",
-      projectId: "tavostore-4dedf",
-      storageBucket: "tavostore-4dedf.firebasestorage.app",
-      messagingSenderId: "265905383641",
-      appId: "1:265905383641:web:92499c7fe2620f988f36c8"
-    };
+        const firebaseConfig = {
+            apiKey: "AIzaSyBQwVbcCO2GHCHKL5EoEOG9Jo3ZAXGAy2o",
+            authDomain: "tavostore-4dedf.firebaseapp.com",
+            projectId: "tavostore-4dedf",
+            storageBucket: "tavostore-4dedf.firebasestorage.app",
+            messagingSenderId: "265905383641",
+            appId: "1:265905383641:web:92499c7fe2620f988f36c8"
+        };
 
-    const app = initializeApp(firebaseConfig);
-    const auth = getAuth(app);
-    const db = getFirestore(app);
-    const appId = "tavostore-main-app";
+        const app = initializeApp(firebaseConfig);
+        const auth = getAuth(app);
+        const db = getFirestore(app);
+        const appId = "tavostore-main-app";
 
-    window.fb = { auth, db, appId, collection, deleteDoc, doc, onAuthStateChanged, onSnapshot, setDoc, signInAnonymously, updateDoc };
-  </script>
+        window.fb = { db, auth, appId, doc, setDoc, onSnapshot, updateDoc, collection, deleteDoc, signInAnonymously, onAuthStateChanged };
+    </script>
 
-  <script src="https://unpkg.com/react@18/umd/react.production.min.js"></script>
-  <script src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js"></script>
-  <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
+    <script src="https://unpkg.com/react@18/umd/react.production.min.js"></script>
+    <script src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js"></script>
+    <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
 
-  <script type="text/babel">
-    const { useEffect, useMemo, useState } = React;
+    <script type="text/babel">
+        const { useState, useEffect, useRef } = React;
 
-    const defaults = {
-      rate: 62,
-      settings: {
-        logo: 'TAVO STORE',
-        whatsapp: '584249649769',
-        banner: '',
-        background: '',
-        headline: 'Bienvenido a nuestra tienda',
-        storeInfo: 'Comparte aquí información de la tienda, horarios, promociones o novedades.',
-        announTitle: 'ANUNCIO DESTACADO',
-        announText: 'Publica aquí tu anuncio llamativo para captar clientes.',
-      },
-      products: []
-    };
+        const App = () => {
+            const [user, setUser] = useState(null);
+            const [view, setView] = useState('store');
+            const [isAdmin, setIsAdmin] = useState(false);
+            const [loading, setLoading] = useState(true);
+            const [cart, setCart] = useState([]);
+            const [showCart, setShowCart] = useState(false);
+            const [showAI, setShowAI] = useState(false);
+            const [data, setData] = useState({
+                rate: 62.00,
+                settings: {
+                    logo: "TAVO STORE",
+                    whatsapp: "584249649769",
+                    banner: "",
+                    background: ""
+                },
+                products: []
+            });
 
-    const App = () => {
-      const [user, setUser] = useState(null);
-      const [data, setData] = useState(defaults);
-      const [view, setView] = useState('store');
-      const [storeSection, setStoreSection] = useState('inicio');
-      const [loading, setLoading] = useState(true);
-      const [cart, setCart] = useState([]);
-      const [showCart, setShowCart] = useState(false);
+            useEffect(() => {
+                if (!window.fb) return;
+                window.fb.signInAnonymously(window.fb.auth).then(() => {
+                    window.fb.onAuthStateChanged(window.fb.auth, setUser);
+                });
+            }, []);
 
-      const [adminSettings, setAdminSettings] = useState(defaults.settings);
+            useEffect(() => {
+                if (!user || !window.fb) return;
+                const { db, appId, doc, collection, onSnapshot } = window.fb;
 
-      useEffect(() => {
-        if (!window.fb) return;
-        window.fb.signInAnonymously(window.fb.auth).then(() => {
-          window.fb.onAuthStateChanged(window.fb.auth, setUser);
-        });
-      }, []);
+                const unsubS = onSnapshot(doc(db, 'artifacts', appId, 'public', 'data', 'configuracion', 'general'), (snap) => {
+                    if (snap.exists()) {
+                        const cloudData = snap.data();
+                        setData(prev => ({ ...prev, ...cloudData }));
+                        if (cloudData.settings?.background) {
+                            document.body.style.backgroundImage = `url('${cloudData.settings.background}')`;
+                        }
+                    }
+                });
 
-      useEffect(() => {
-        if (!user || !window.fb) return;
+                const unsubP = onSnapshot(collection(db, 'artifacts', appId, 'public', 'data', 'productos'), (snap) => {
+                    const list = snap.docs.map(d => ({ id: d.id, ...d.data() }));
+                    setData(prev => ({ ...prev, products: list }));
+                    setLoading(false);
+                });
 
-        const configRef = window.fb.doc(window.fb.db, 'artifacts', window.fb.appId, 'public', 'data', 'configuracion', 'general');
+                return () => { unsubS(); unsubP(); };
+            }, [user]);
 
-        const unsubConfig = window.fb.onSnapshot(configRef, (snap) => {
-          const remote = snap.exists() ? snap.data() : {};
-          const merged = {
-            ...defaults,
-            ...remote,
-            settings: { ...defaults.settings, ...(remote.settings || {}) }
-          };
-          setData((prev) => ({ ...prev, ...merged }));
-          setAdminSettings((prev) => ({ ...prev, ...merged.settings }));
+            // Función para procesar archivos locales a Base64
+            const handleFileUpload = (e, callback) => {
+                const file = e.target.files[0];
+                if (!file) return;
+                const reader = new FileReader();
+                reader.onloadend = () => callback(reader.result);
+                reader.readAsDataURL(file);
+            };
 
-          if (merged.settings.background) {
-            document.body.style.backgroundImage = `linear-gradient(rgba(2,6,23,.85), rgba(2,6,23,.92)), url('${merged.settings.background}')`;
-            document.body.style.backgroundSize = 'cover';
-            document.body.style.backgroundAttachment = 'fixed';
-          }
-          setLoading(false);
-        });
+            // Convierte imágenes muy grandes a WebP optimizado para evitar errores de carga/guardado
+            const processFlexibleImageUpload = (e, callback, options = {}) => {
+                const file = e.target.files[0];
+                if (!file) return;
 
-        const unsubProducts = window.fb.onSnapshot(
-          window.fb.collection(window.fb.db, 'artifacts', window.fb.appId, 'public', 'data', 'productos'),
-          (snap) => {
-            const list = snap.docs.map((d) => ({ id: d.id, ...d.data() }));
-            setData((prev) => ({ ...prev, products: list }));
-          }
-        );
+                const {
+                    maxWidth = 1920,
+                    maxHeight = 1080,
+                    quality = 0.85
+                } = options;
 
-        return () => { unsubConfig(); unsubProducts(); };
-      }, [user]);
+                const objectUrl = URL.createObjectURL(file);
+                const img = new Image();
 
-      const catalogProducts = useMemo(() => data.products.filter(Boolean), [data.products]);
-      const cartTotal = cart.reduce((acc, item) => acc + (item.price || 0) * item.qty, 0);
+                img.onload = () => {
+                    const canvas = document.createElement('canvas');
+                    const ctx = canvas.getContext('2d');
+                    if (!ctx) {
+                        URL.revokeObjectURL(objectUrl);
+                        handleFileUpload(e, callback);
+                        return;
+                    }
 
-      const uploadAsBase64 = (event, cb) => {
-        const file = event.target.files?.[0];
-        if (!file) return;
-        const reader = new FileReader();
-        reader.onloadend = () => cb(reader.result);
-        reader.readAsDataURL(file);
-      };
+                    const widthRatio = maxWidth / img.width;
+                    const heightRatio = maxHeight / img.height;
+                    const ratio = Math.min(widthRatio, heightRatio, 1);
 
-      const addToCart = (product) => {
-        setCart((prev) => {
-          const found = prev.find((item) => item.id === product.id);
-          if (found) return prev.map((item) => item.id === product.id ? { ...item, qty: item.qty + 1 } : item);
-          return [...prev, { ...product, qty: 1 }];
-        });
-      };
+                    canvas.width = Math.round(img.width * ratio);
+                    canvas.height = Math.round(img.height * ratio);
 
-      const checkout = () => {
-        if (!cart.length) return;
-        let msg = `🛒 *Pedido ${data.settings.logo}*\n\n`;
-        cart.forEach((item) => { msg += `• ${item.name} x${item.qty} - $${(item.price * item.qty).toFixed(2)}\n`; });
-        msg += `\n💵 Total: $${cartTotal.toFixed(2)}\n🇻🇪 Bs: ${(cartTotal * data.rate).toLocaleString('es-VE')}`;
-        window.open(`https://wa.me/${data.settings.whatsapp}?text=${encodeURIComponent(msg)}`);
-      };
+                    ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
+                    callback(canvas.toDataURL('image/webp', quality));
 
-      const saveAdminSettings = async () => {
-        const ref = window.fb.doc(window.fb.db, 'artifacts', window.fb.appId, 'public', 'data', 'configuracion', 'general');
-        await window.fb.setDoc(ref, { ...data, settings: { ...data.settings, ...adminSettings } }, { merge: true });
-      };
+                    URL.revokeObjectURL(objectUrl);
+                    e.target.value = '';
+                };
 
-      const saveMediaSetting = (key, value) => {
-        const ref = window.fb.doc(window.fb.db, 'artifacts', window.fb.appId, 'public', 'data', 'configuracion', 'general');
-        window.fb.updateDoc(ref, { [`settings.${key}`]: value });
-      };
+                img.onerror = () => {
+                    URL.revokeObjectURL(objectUrl);
+                    handleFileUpload(e, callback);
+                    e.target.value = '';
+                };
 
-      if (loading) return <div className="min-h-screen grid place-items-center text-xs uppercase tracking-[.35em] text-blue-400">Cargando tienda…</div>;
+                img.src = objectUrl;
+            };
 
-      return (
-        <div className="min-h-screen pb-16">
-          <nav className="sticky top-0 z-40 premium-glass px-4 md:px-8 py-4 flex items-center justify-between">
-            <button className="flex items-center gap-3" onClick={() => { setView('store'); setStoreSection('inicio'); }}>
-              <span className="w-9 h-9 rounded-xl bg-blue-600 grid place-items-center"><i className="fa-solid fa-bolt" /></span>
-              <span className="font-black tracking-tight uppercase">{data.settings.logo}</span>
-            </button>
-            <div className="flex items-center gap-2">
-              <button className="relative w-11 h-11 rounded-xl bg-white/5" onClick={() => setShowCart(true)}>
-                <i className="fa-solid fa-bag-shopping" />
-                {cart.length > 0 && <span className="cart-badge">{cart.length}</span>}
-              </button>
-              <button className="px-3 py-2 text-xs rounded-xl bg-white/5 border border-white/10" onClick={() => setView(view === 'admin' ? 'store' : 'admin')}>
-                {view === 'admin' ? 'Tienda' : 'Admin'}
-              </button>
-            </div>
-          </nav>
+            const normalizeRateValue = (value) => {
+                if (typeof value === 'number') return value;
+                if (typeof value !== 'string') return NaN;
 
-          {view === 'store' && (
-            <>
-              <section className="max-w-6xl mx-auto px-4 md:px-8 mt-6">
-                <div className="flex gap-2">
-                  <button className={`px-4 py-2 rounded-xl border text-xs uppercase font-black ${storeSection === 'inicio' ? 'active-tab' : 'bg-white/5 border-white/10'}`} onClick={() => setStoreSection('inicio')}>
-                    Inicio
-                  </button>
-                  <button className={`px-4 py-2 rounded-xl border text-xs uppercase font-black ${storeSection === 'catalogo' ? 'active-tab' : 'bg-white/5 border-white/10'}`} onClick={() => setStoreSection('catalogo')}>
-                    Catálogo
-                  </button>
-                </div>
-              </section>
+                const cleaned = value
+                    .replace(/\s/g, '')
+                    .replace(/\./g, '')
+                    .replace(',', '.');
 
-              {storeSection === 'inicio' && (
-                <>
-                  <header className="max-w-6xl mx-auto px-4 md:px-8 mt-5">
-                    <div className="relative overflow-hidden rounded-3xl p-8 md:p-12 premium-glass">
-                      {data.settings.banner && <img src={data.settings.banner} alt="Banner" loading="eager" decoding="async" className="absolute inset-0 w-full h-full object-cover opacity-30" />}
-                      <div className="absolute inset-0 bg-gradient-to-r from-[#020617] via-[#020617]/70 to-transparent" />
-                      <div className="relative z-10 max-w-3xl">
-                        <p className="text-xs uppercase tracking-[.3em] text-blue-300 mb-2">Página principal</p>
-                        <h1 className="text-3xl md:text-5xl font-black uppercase">{data.settings.headline}</h1>
-                        <p className="mt-3 text-sm md:text-base text-slate-200">{data.settings.storeInfo}</p>
-                        <div className="mt-5 inline-flex px-4 py-2 rounded-xl bg-blue-600/20 border border-blue-500/40 text-xs uppercase">Tasa BCV: Bs. {Number(data.rate).toFixed(2)}</div>
-                      </div>
-                    </div>
-                  </header>
+                return parseFloat(cleaned);
+            };
 
-                  <section className="max-w-6xl mx-auto px-4 md:px-8 mt-6">
-                    <div className="premium-glass rounded-2xl px-5 py-4 flex flex-wrap items-center justify-between gap-4 border border-blue-500/20">
-                      <div>
-                        <p className="text-[10px] uppercase tracking-[.3em] text-blue-300">Anuncio</p>
-                        <h3 className="font-black text-lg uppercase">{data.settings.announTitle}</h3>
-                        <p className="text-sm text-slate-300">{data.settings.announText}</p>
-                      </div>
-                      <button onClick={() => window.open(`https://wa.me/${data.settings.whatsapp}`)} className="px-4 py-2 rounded-xl bg-blue-600 text-xs font-black uppercase">Contactar ahora</button>
-                    </div>
-                  </section>
-                </>
-              )}
+            const addToCart = (product) => {
+                setCart(prev => {
+                    const exists = prev.find(item => item.id === product.id);
+                    if (exists) return prev.map(item => item.id === product.id ? { ...item, qty: item.qty + 1 } : item);
+                    return [...prev, { ...product, qty: 1 }];
+                });
+            };
 
-              {storeSection === 'catalogo' && (
-                <section className="max-w-6xl mx-auto px-4 md:px-8 mt-6">
-                  <div className="flex items-center justify-between mb-4">
-                    <h2 className="text-2xl md:text-3xl font-black uppercase">Catálogo</h2>
-                    <span className="text-xs uppercase tracking-[.3em] text-slate-400">{catalogProducts.length} productos</span>
-                  </div>
-                  <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-4 md:gap-6">
-                    {catalogProducts.map((p) => (
-                      <article key={p.id} className="smooth-card premium-glass rounded-3xl overflow-hidden border border-white/10">
-                        <div className="aspect-[4/3] bg-slate-900">
-                          <img src={p.img || 'https://placehold.co/600x450/0f172a/ffffff?text=Producto'} alt={p.name} loading="lazy" decoding="async" className="w-full h-full object-cover" />
+            const removeFromCart = (id) => setCart(prev => prev.filter(i => i.id !== id));
+            const cartTotal = cart.reduce((acc, curr) => acc + (curr.price * curr.qty), 0);
+
+            const checkout = () => {
+                let msg = `🛍️ *PEDIDO - ${data.settings.logo}*\n\n`;
+                cart.forEach(item => { msg += `• ${item.name} (x${item.qty}) - $${item.price * item.qty}\n`; });
+                msg += `\n💵 *TOTAL:* $${cartTotal.toFixed(2)}\n`;
+                msg += `🇻🇪 *TOTAL BS:* Bs. ${(cartTotal * data.rate).toLocaleString('es-VE')}\n`;
+                msg += `\n_Tasa aplicada: Bs. ${data.rate}_`;
+                window.open(`https://wa.me/${data.settings.whatsapp}?text=${encodeURIComponent(msg)}`);
+            };
+
+            const quickBuy = (p) => {
+                let msg = `👋 Hola! Quiero comprar:\n\n📌 *${p.name}*\n💰 *Precio:* $${p.price}\n`;
+                if(p.price > 22) msg += `💳 *Interés:* Información sobre cuotas.\n`;
+                msg += `\n_Tasa: Bs. ${data.rate}_`;
+                window.open(`https://wa.me/${data.settings.whatsapp}?text=${encodeURIComponent(msg)}`);
+            };
+
+            const AIChat = () => {
+                const [input, setInput] = useState("");
+                const [chat, setChat] = useState([{ role: 'bot', text: `¡Hola! Soy el asistente de ${data.settings.logo}. ¿Buscas algo en especial?` }]);
+                const [isTyping, setIsTyping] = useState(false);
+                const chatEnd = useRef(null);
+
+                const askAI = async () => {
+                    if (!input.trim()) return;
+                    const userText = input;
+                    setInput("");
+                    setChat(prev => [...prev, { role: 'user', text: userText }]);
+                    setIsTyping(true);
+
+                    try {
+                        const apiKey = ""; 
+                        const systemPrompt = `Eres el asistente de la tienda "${data.settings.logo}". Tasa: Bs. ${data.rate}. Productos: ${data.products.map(p => `${p.name} ($${p.price})`).join(", ")}. Más de $22 tienen 2 o 3 cuotas.`;
+
+                        const response = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash-preview-09-2025:generateContent?key=${apiKey}`, {
+                            method: "POST",
+                            headers: { "Content-Type": "application/json" },
+                            body: JSON.stringify({
+                                contents: [{ parts: [{ text: userText }] }],
+                                systemInstruction: { parts: [{ text: systemPrompt }] }
+                            })
+                        });
+
+                        const result = await response.json();
+                        const botText = result.candidates?.[0]?.content?.parts?.[0]?.text;
+                        if (botText) setChat(prev => [...prev, { role: 'bot', text: botText }]);
+                        else throw new Error();
+                    } catch (e) {
+                        setChat(prev => [...prev, { role: 'bot', text: "No pude procesar tu consulta, intenta de nuevo." }]);
+                    } finally { setIsTyping(false); }
+                };
+
+                useEffect(() => chatEnd.current?.scrollIntoView({ behavior: 'smooth' }), [chat]);
+
+                return (
+                    <div className="flex flex-col h-full bg-[#0f172a]">
+                        <div className="flex-1 overflow-y-auto p-4 space-y-4">
+                            {chat.map((msg, i) => (
+                                <div key={i} className={`flex ${msg.role === 'user' ? 'justify-end' : 'justify-start'}`}>
+                                    <div className={`p-3 rounded-2xl text-[11px] leading-relaxed ${msg.role === 'user' ? 'bg-blue-600 text-white' : 'bg-white/10 text-slate-200 border border-white/5'}`}>
+                                        {msg.text}
+                                    </div>
+                                </div>
+                            ))}
+                            {isTyping && <div className="text-[10px] text-blue-500 animate-pulse ml-2 font-bold uppercase">Procesando...</div>}
+                            <div ref={chatEnd} />
                         </div>
-                        <div className="p-5">
-                          <h3 className="font-black text-lg uppercase line-clamp-2">{p.name}</h3>
-                          <p className="text-xs uppercase text-slate-300 mt-1">{p.status === 'order' ? 'Por encargo' : 'Disponible'}</p>
-                          <div className="mt-4 flex items-center justify-between">
-                            <div>
-                              <p className="text-2xl font-black">${Number(p.price || 0).toFixed(2)}</p>
-                              <p className="text-xs text-blue-300">Bs. {(Number(p.price || 0) * data.rate).toLocaleString('es-VE')}</p>
+                        <div className="p-3 border-t border-white/5 flex gap-2 bg-[#020617]">
+                            <input value={input} onChange={e => setInput(e.target.value)} onKeyDown={e => e.key === 'Enter' && askAI()} className="input-elegant text-[11px] h-10" placeholder="Pregunta..." />
+                            <button onClick={askAI} className="bg-blue-600 w-10 h-10 rounded-xl flex items-center justify-center shrink-0"><i className="fas fa-paper-plane text-xs"></i></button>
+                        </div>
+                    </div>
+                );
+            };
+
+            /*if (loading) return <div className="h-screen flex items-center justify-center bg-[#020617] text-blue-500 font-black uppercase tracking-[0.4em] text-xs animate-pulse">Cargando Sistema...</div>;*/
+
+            return (
+                <div className="min-h-screen pb-20 relative">
+                    <div className="fixed inset-0 bg-black/50 pointer-events-none -z-10"></div>
+
+                    <nav className="fixed top-0 w-full z-50 premium-glass px-6 py-4 flex justify-between items-center">
+                        <div className="flex items-center gap-3 cursor-pointer" onClick={() => setView('store')}>
+                            <div className="w-9 h-9 bg-blue-600 rounded-xl flex items-center justify-center shadow-lg shadow-blue-600/30"><i className="fas fa-bolt"></i></div>
+                            <span className="text-lg font-black uppercase tracking-tighter italic">{data.settings.logo}</span>
+                        </div>
+                        <div className="flex items-center gap-3">
+                            <button onClick={() => setShowCart(true)} className="relative w-11 h-11 bg-white/5 rounded-2xl border border-white/5 flex items-center justify-center transition-all">
+                                <i className="fas fa-shopping-bag text-sm"></i>
+                                {cart.length > 0 && <span className="cart-badge">{cart.length}</span>}
+                            </button>
+                            <button onClick={() => setView(view === 'admin' ? 'store' : 'admin')} className="bg-white/5 px-4 py-2.5 rounded-2xl text-[10px] font-black uppercase border border-white/5">
+                                {view === 'admin' ? 'Tienda' : 'Admin'}
+                            </button>
+                        </div>
+                    </nav>
+
+                    {view === 'store' ? (
+                        <div className="fade-in pt-16">
+                            <header className="relative h-[45vh] flex items-center justify-center overflow-hidden">
+                                {data.settings.banner && <img src={data.settings.banner} className="absolute inset-0 w-full h-full object-cover opacity-40" />}
+                                <div className="absolute inset-0 bg-gradient-to-t from-[#020617] via-transparent to-transparent"></div>
+                                <div className="relative text-center px-4">
+                                    <h1 className="text-6xl md:text-8xl font-black italic uppercase tracking-tighter mb-4">{data.settings.logo}</h1>
+                                    <div className="inline-flex items-center gap-3 bg-blue-600/20 border border-blue-500/30 px-6 py-2 rounded-2xl backdrop-blur-md">
+                                        <p className="text-[10px] font-black uppercase tracking-widest text-blue-100">Dólar BCV: <span className="text-white ml-1">Bs. {data.rate.toFixed(2)}</span></p>
+                                    </div>
+                                </div>
+                            </header>
+
+                            <div className="max-w-7xl mx-auto px-4 md:px-6 grid grid-cols-2 lg:grid-cols-4 gap-4 md:gap-8 -mt-12 relative z-10 pb-20">
+                                {data.products.map(p => (
+                                    <div key={p.id} className="product-card premium-glass rounded-[1.8rem] md:rounded-[2.2rem] overflow-hidden flex flex-col group">
+                                        <div className="aspect-[4/5] relative overflow-hidden bg-slate-900">
+                                            {p.img && <img src={p.img} className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-700" />}
+                                            <div className="absolute top-4 left-4 bg-black/60 backdrop-blur-md px-3 py-1 rounded-xl text-[8px] font-black uppercase border border-white/10">
+                                                {p.status === 'stock' ? 'Disponible' : 'Bajo pedido'}
+                                            </div>
+                                            {p.price > 22 && (
+                                                <div className="absolute bottom-4 left-4 right-4 badge-finance py-2 px-3 rounded-2xl text-center">
+                                                    <p className="text-[9px] font-black uppercase tracking-tighter text-white">2 o 3 Cuotas ✨</p>
+                                                </div>
+                                            )}
+                                        </div>
+                                        <div className="p-5 flex flex-col flex-1">
+                                            <h3 className="text-[11px] md:text-xs font-bold uppercase mb-4 line-clamp-2 h-9 text-slate-100">{p.name}</h3>
+                                            <div className="mt-auto">
+                                                <div className="mb-5">
+                                                    <p className="text-2xl font-black italic text-white">${p.price}</p>
+                                                    <p className="text-[9px] text-slate-400 font-bold uppercase tracking-tight">Bs. {(p.price * data.rate).toLocaleString('es-VE')}</p>
+                                                </div>
+                                                <div className="flex gap-2">
+                                                    <button onClick={() => addToCart(p)} className="flex-1 bg-white/5 border border-white/10 h-11 rounded-2xl flex items-center justify-center transition-all hover:bg-white/10">
+                                                        <i className="fas fa-cart-plus text-xs"></i>
+                                                    </button>
+                                                    <button onClick={() => quickBuy(p)} className="flex-1 bg-blue-600 h-11 rounded-2xl flex items-center justify-center gap-2 shadow-lg shadow-blue-600/30">
+                                                        <i className="fab fa-whatsapp text-sm"></i>
+                                                        <span className="text-[9px] font-black uppercase">Pedir</span>
+                                                    </button>
+                                                </div>
+                                            </div>
+                                        </div>
+                                    </div>
+                                ))}
                             </div>
-                            <button onClick={() => addToCart(p)} className="px-4 py-2 rounded-xl bg-blue-600 text-xs font-black uppercase">Agregar</button>
-                          </div>
                         </div>
-                      </article>
-                    ))}
-                  </div>
-                </section>
-              )}
-            </>
-          )}
+                    ) : (
+                        /* ADMIN PANEL */
+                        <div className="max-w-5xl mx-auto px-6 py-32 fade-in">
+                            {!isAdmin ? (
+                                <div className="flex items-center justify-center h-[50vh]">
+                                    <div className="premium-glass p-10 rounded-[3rem] w-full max-w-xs text-center">
+                                        <input type="password" placeholder="Clave" className="input-elegant text-center mb-6" onKeyDown={e => e.key === 'Enter' && e.target.value === 'tavo2026' && setIsAdmin(true)} />
+                                        <button onClick={(e) => e.target.previousSibling.value === 'tavo2026' ? setIsAdmin(true) : alert('Clave incorrecta')} className="w-full bg-blue-600 py-4 rounded-2xl font-black uppercase text-[11px]">Acceder</button>
+                                    </div>
+                                </div>
+                            ) : (
+                                <div className="space-y-12">
+                                    <div className="flex justify-between items-end border-b border-white/10 pb-6">
+                                        <h2 className="text-3xl font-black italic uppercase text-white">Configuración</h2>
+                                        <button onClick={async () => {
+                                            const res = await fetch('https://pydolarvenezuela-api.vercel.app/api/v1/dollar?page=bcv');
+                                            const json = await res.json();
+                                            const parsedRate = normalizeRateValue(json.monitors?.bcv?.price);
+                                            if(Number.isFinite(parsedRate)) {
+                                                setData(prev => ({ ...prev, rate: parsedRate }));
+                                                window.fb.updateDoc(window.fb.doc(window.fb.db, 'artifacts', window.fb.appId, 'public', 'data', 'configuracion', 'general'), { rate: parsedRate });
+                                            }
+                                        }} className="bg-blue-600/10 border border-blue-500/20 text-blue-500 px-5 py-2.5 rounded-2xl text-[10px] font-black uppercase flex items-center gap-2">
+                                            <i className="fas fa-sync-alt"></i> Sincronizar BCV
+                                        </button>
+                                    </div>
 
-          {view === 'admin' && (
-            <section className="max-w-6xl mx-auto px-4 md:px-8 mt-8 space-y-6">
-              <div className="premium-glass rounded-3xl p-6">
-                <h2 className="text-2xl font-black uppercase mb-4">Editar página principal</h2>
-                <div className="grid md:grid-cols-2 gap-3">
-                  <input className="input-elegant" placeholder="Nombre de tienda" value={adminSettings.logo || ''} onChange={(e) => setAdminSettings({ ...adminSettings, logo: e.target.value })} />
-                  <input className="input-elegant" placeholder="WhatsApp" value={adminSettings.whatsapp || ''} onChange={(e) => setAdminSettings({ ...adminSettings, whatsapp: e.target.value })} />
-                  <input className="input-elegant md:col-span-2" placeholder="Título principal / headline" value={adminSettings.headline || ''} onChange={(e) => setAdminSettings({ ...adminSettings, headline: e.target.value })} />
-                  <textarea className="input-elegant md:col-span-2 min-h-[90px]" placeholder="Información de la tienda o lo que quieras mostrar en la página principal" value={adminSettings.storeInfo || ''} onChange={(e) => setAdminSettings({ ...adminSettings, storeInfo: e.target.value })} />
-                  <input className="input-elegant" placeholder="Título de anuncio" value={adminSettings.announTitle || ''} onChange={(e) => setAdminSettings({ ...adminSettings, announTitle: e.target.value })} />
-                  <input className="input-elegant" placeholder="Texto de anuncio" value={adminSettings.announText || ''} onChange={(e) => setAdminSettings({ ...adminSettings, announText: e.target.value })} />
-                </div>
-                <div className="mt-4 flex flex-wrap gap-3">
-                  <button className="px-5 py-3 rounded-xl bg-blue-600 text-xs font-black uppercase" onClick={saveAdminSettings}>Guardar cambios principal</button>
-                  <label className="text-xs uppercase font-black bg-white/5 rounded-xl px-4 py-3 cursor-pointer">Banner <input type="file" className="hidden" onChange={(e) => uploadAsBase64(e, (v) => saveMediaSetting('banner', v))} /></label>
-                  <label className="text-xs uppercase font-black bg-white/5 rounded-xl px-4 py-3 cursor-pointer">Fondo <input type="file" className="hidden" onChange={(e) => uploadAsBase64(e, (v) => saveMediaSetting('background', v))} /></label>
-                </div>
-              </div>
+                                    {/* Ajustes Generales */}
+                                    <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                                        <div className="premium-glass p-8 rounded-[2rem] space-y-6">
+                                            <div>
+                                                <label className="text-[9px] font-black text-slate-500 uppercase block mb-3">Tasa USD</label>
+                                                <input type="number" step="0.01" className="input-elegant font-black text-2xl" value={data.rate} onChange={e => window.fb.updateDoc(window.fb.doc(window.fb.db, 'artifacts', window.fb.appId, 'public', 'data', 'configuracion', 'general'), { rate: parseFloat(e.target.value) || 0 })} />
+                                            </div>
+                                            <div>
+                                                <label className="text-[9px] font-black text-slate-500 uppercase block mb-3">Nombre de la Tienda</label>
+                                                <input className="input-elegant font-bold uppercase" value={data.settings.logo} onChange={e => window.fb.updateDoc(window.fb.doc(window.fb.db, 'artifacts', window.fb.appId, 'public', 'data', 'configuracion', 'general'), { 'settings.logo': e.target.value })} />
+                                            </div>
+                                        </div>
+                                        <div className="premium-glass p-8 rounded-[2rem] space-y-6">
+                                            <div>
+                                                <label className="text-[9px] font-black text-slate-500 uppercase block mb-3">Cambiar Fondo (Local)</label>
+                                                <div className="file-upload-btn" onClick={() => document.getElementById('bgInput').click()}>
+                                                    Seleccionar Imagen de Fondo
+                                                </div>
+                                                <input id="bgInput" type="file" accept="image/*" className="hidden" onChange={e => processFlexibleImageUpload(e, (base64) => window.fb.updateDoc(window.fb.doc(window.fb.db, 'artifacts', window.fb.appId, 'public', 'data', 'configuracion', 'general'), { 'settings.background': base64 }), { maxWidth: 2400, maxHeight: 2400, quality: 0.82 })} />
+                                            </div>
+                                            <div>
+                                                <label className="text-[9px] font-black text-slate-500 uppercase block mb-3">Cambiar Banner (Local)</label>
+                                                <div className="file-upload-btn" onClick={() => document.getElementById('bannerInput').click()}>
+                                                    Seleccionar Imagen de Banner
+                                                </div>
+                                                <input id="bannerInput" type="file" accept="image/*" className="hidden" onChange={e => processFlexibleImageUpload(e, (base64) => window.fb.updateDoc(window.fb.doc(window.fb.db, 'artifacts', window.fb.appId, 'public', 'data', 'configuracion', 'general'), { 'settings.banner': base64 }), { maxWidth: 2400, maxHeight: 1200, quality: 0.82 })} />
+                                            </div>
+                                        </div>
+                                    </div>
 
-              <div className="premium-glass rounded-3xl p-6">
-                <div className="flex flex-wrap justify-between items-center gap-4 mb-6">
-                  <h2 className="text-2xl font-black uppercase">Gestión de catálogo</h2>
-                  <button className="px-4 py-2 rounded-xl bg-white/5 border border-white/10 text-xs uppercase font-black" onClick={() => {
-                    const id = `p_${Date.now()}`;
-                    window.fb.setDoc(window.fb.doc(window.fb.db, 'artifacts', window.fb.appId, 'public', 'data', 'productos', id), { name: 'Nuevo producto', price: 10, img: '', status: 'stock' });
-                  }}>+ Agregar producto</button>
-                </div>
+                                    {/* Inventario */}
+                                    <div className="space-y-6">
+                                        <div className="flex justify-between items-center">
+                                            <h3 className="text-xl font-black italic uppercase">Inventario</h3>
+                                            <button onClick={() => {
+                                                const id = "p_" + Date.now();
+                                                window.fb.setDoc(window.fb.doc(window.fb.db, 'artifacts', window.fb.appId, 'public', 'data', 'productos', id), { name: "Nuevo Producto", price: 10, img: "", status: "stock" });
+                                            }} className="bg-white/5 border border-white/10 px-6 py-3 rounded-2xl text-[10px] font-black uppercase">+ Agregar Item</button>
+                                        </div>
 
-                <div className="space-y-3">
-                  {data.products.map((p) => (
-                    <div key={p.id} className="bg-white/5 border border-white/10 rounded-2xl p-4 grid md:grid-cols-[1fr_130px_120px_120px] gap-3 items-center">
-                      <input className="input-elegant" value={p.name || ''} onChange={(e) => window.fb.updateDoc(window.fb.doc(window.fb.db, 'artifacts', window.fb.appId, 'public', 'data', 'productos', p.id), { name: e.target.value })} />
-                      <input className="input-elegant" type="number" value={p.price || 0} onChange={(e) => window.fb.updateDoc(window.fb.doc(window.fb.db, 'artifacts', window.fb.appId, 'public', 'data', 'productos', p.id), { price: Number(e.target.value) || 0 })} />
-                      <select className="input-elegant" value={p.status || 'stock'} onChange={(e) => window.fb.updateDoc(window.fb.doc(window.fb.db, 'artifacts', window.fb.appId, 'public', 'data', 'productos', p.id), { status: e.target.value })}>
-                        <option value="stock">Stock</option>
-                        <option value="order">Encargo</option>
-                      </select>
-                      <button className="h-[42px] rounded-xl bg-red-600/30 border border-red-400/40 text-xs uppercase font-black" onClick={() => window.fb.deleteDoc(window.fb.doc(window.fb.db, 'artifacts', window.fb.appId, 'public', 'data', 'productos', p.id))}>Eliminar</button>
+                                        <div className="grid grid-cols-1 gap-4">
+                                            {data.products.map(p => (
+                                                <div key={p.id} className="premium-glass p-5 rounded-2xl flex flex-wrap md:flex-nowrap gap-5 items-center">
+                                                    <div className="relative group cursor-pointer" onClick={() => document.getElementById(`file_${p.id}`).click()}>
+                                                        <img src={p.img || 'https://placehold.co/100'} className="w-20 h-20 rounded-2xl object-cover bg-black" />
+                                                        <div className="absolute inset-0 bg-black/50 opacity-0 group-hover:opacity-100 flex items-center justify-center rounded-2xl transition-opacity">
+                                                            <i className="fas fa-camera text-xs"></i>
+                                                        </div>
+                                                        <input id={`file_${p.id}`} type="file" className="hidden" onChange={e => handleFileUpload(e, (base64) => window.fb.updateDoc(window.fb.doc(window.fb.db, 'artifacts', window.fb.appId, 'public', 'data', 'productos', p.id), { img: base64 }))} />
+                                                    </div>
+                                                    <div className="flex-1 min-w-[200px] space-y-3">
+                                                        <input className="input-elegant text-[11px] font-bold" placeholder="Nombre" value={p.name} onChange={e => window.fb.updateDoc(window.fb.doc(window.fb.db, 'artifacts', window.fb.appId, 'public', 'data', 'productos', p.id), { name: e.target.value })} />
+                                                        <div className="flex gap-3">
+                                                            <input className="input-elegant text-[11px] w-28" type="number" placeholder="Precio $" value={p.price} onChange={e => window.fb.updateDoc(window.fb.doc(window.fb.db, 'artifacts', window.fb.appId, 'public', 'data', 'productos', p.id), { price: parseFloat(e.target.value) || 0 })} />
+                                                            <select className="input-elegant text-[10px] font-black w-32" value={p.status} onChange={e => window.fb.updateDoc(window.fb.doc(window.fb.db, 'artifacts', window.fb.appId, 'public', 'data', 'productos', p.id), { status: e.target.value })}>
+                                                                <option value="stock">Stock</option>
+                                                                <option value="order">Encargo</option>
+                                                            </select>
+                                                        </div>
+                                                    </div>
+                                                    <button onClick={() => window.fb.deleteDoc(window.fb.doc(window.fb.db, 'artifacts', window.fb.appId, 'public', 'data', 'productos', p.id))} className="text-red-500 w-12 h-12 rounded-2xl hover:bg-red-500/10 flex items-center justify-center"><i className="fas fa-trash-alt"></i></button>
+                                                </div>
+                                            ))}
+                                        </div>
+                                    </div>
+                                </div>
+                            )}
+                        </div>
+                    )}
+
+                    {/* CARRITO CERRADO */}
+                    {showCart && (
+                        <div className="fixed inset-0 z-[100] bg-black/80 backdrop-blur-md flex justify-end">
+                            <div className="w-full max-sm:max-w-full max-w-sm h-full bg-[#020617] p-8 flex flex-col fade-in border-l border-white/5">
+                                <div className="flex justify-between items-center mb-10">
+                                    <h2 className="text-xl font-black italic uppercase">Tu Carrito</h2>
+                                    <button onClick={() => setShowCart(false)} className="w-11 h-11 rounded-2xl bg-white/5 flex items-center justify-center"><i className="fas fa-times"></i></button>
+                                </div>
+                                <div className="flex-1 overflow-y-auto space-y-5">
+                                    {cart.length === 0 ? (
+                                        <p className="text-center py-20 text-[10px] font-black uppercase opacity-20 tracking-widest">Vacío</p>
+                                    ) : cart.map(item => (
+                                        <div key={item.id} className="flex gap-4 items-center bg-white/5 p-4 rounded-3xl">
+                                            <img src={item.img} className="w-12 h-12 rounded-xl object-cover" />
+                                            <div className="flex-1">
+                                                <p className="text-[10px] font-black uppercase line-clamp-1">{item.name}</p>
+                                                <p className="text-xs font-bold text-blue-500">${item.price} <span className="text-slate-500 ml-1">x{item.qty}</span></p>
+                                            </div>
+                                            <button onClick={() => removeFromCart(item.id)} className="text-red-500 text-xs p-2"><i className="fas fa-trash-alt"></i></button>
+                                        </div>
+                                    ))}
+                                </div>
+                                {cart.length > 0 && (
+                                    <div className="pt-8 border-t border-white/10 mt-6">
+                                        <div className="flex justify-between items-end mb-8">
+                                            <span className="text-[10px] font-black uppercase text-slate-500 tracking-widest">Total</span>
+                                            <div className="text-right">
+                                                <p className="text-3xl font-black italic text-white">${cartTotal.toFixed(2)}</p>
+                                                <p className="text-[10px] text-blue-500 font-black">Bs. {(cartTotal * data.rate).toLocaleString('es-VE')}</p>
+                                            </div>
+                                        </div>
+                                        <button onClick={checkout} className="w-full bg-blue-600 py-5 rounded-2xl font-black uppercase text-[11px] shadow-2xl shadow-blue-600/30">Enviar Pedido</button>
+                                    </div>
+                                )}
+                            </div>
+                        </div>
+                    )}
+
+                    {/* BOTÓN AI */}
+                    <div className="fixed bottom-6 right-6 z-[90] flex flex-col items-end gap-4">
+                        {showAI && (
+                            <div className="premium-glass rounded-[2.5rem] overflow-hidden shadow-2xl border-blue-500/30 ai-chat-window fade-in mb-2">
+                                <div className="bg-blue-600 p-5 flex justify-between items-center text-white">
+                                    <span className="text-[10px] font-black uppercase">Asistente Tavo</span>
+                                    <button onClick={() => setShowAI(false)}><i className="fas fa-times"></i></button>
+                                </div>
+                                <AIChat />
+                            </div>
+                        )}
+                        <button onClick={() => setShowAI(!showAI)} className="w-14 h-14 bg-blue-600 rounded-2xl shadow-2xl flex items-center justify-center text-xl text-white border border-white/20">
+                            <i className={`fas ${showAI ? 'fa-times' : 'fa-comment-dots'}`}></i>
+                        </button>
                     </div>
-                  ))}
-                </div>
-              </div>
-            </section>
-          )}
 
-          {showCart && (
-            <div className="fixed inset-0 z-50 bg-black/75 backdrop-blur-sm grid place-items-end md:place-items-center p-3" onClick={() => setShowCart(false)}>
-              <div className="w-full md:max-w-lg premium-glass rounded-3xl p-6" onClick={(e) => e.stopPropagation()}>
-                <div className="flex justify-between items-center mb-4">
-                  <h3 className="text-xl font-black uppercase">Carrito</h3>
-                  <button className="w-9 h-9 rounded-xl bg-white/10" onClick={() => setShowCart(false)}><i className="fa-solid fa-xmark" /></button>
+                    <footer className="text-center py-12 opacity-30 text-[9px] font-black uppercase tracking-[0.6em]">
+                        © 2026 {data.settings.logo}
+                    </footer>
                 </div>
-                <div className="max-h-[45vh] overflow-auto space-y-2">
-                  {cart.length === 0 ? <p className="text-sm text-slate-400">Tu carrito está vacío.</p> : cart.map((item) => (
-                    <div className="bg-white/5 border border-white/10 rounded-xl px-3 py-2 flex justify-between text-sm" key={item.id}>
-                      <span>{item.name} x{item.qty}</span>
-                      <span>${(item.price * item.qty).toFixed(2)}</span>
-                    </div>
-                  ))}
-                </div>
-                <div className="mt-4 border-t border-white/10 pt-4">
-                  <p className="text-xl font-black">Total: ${cartTotal.toFixed(2)}</p>
-                  <button className="mt-3 w-full rounded-xl bg-blue-600 py-3 text-xs font-black uppercase disabled:opacity-50" disabled={!cart.length} onClick={checkout}>Enviar pedido por WhatsApp</button>
-                </div>
-              </div>
-            </div>
-          )}
-        </div>
-      );
-    };
+            );
+        };
 
-    ReactDOM.createRoot(document.getElementById('root')).render(<App />);
-  </script>
+        const root = ReactDOM.createRoot(document.getElementById('root'));
+        root.render(<App />);
+    </script>
 </body>
 </html>
+
+
+
+
