@@ -113,26 +113,138 @@
 <body id="body-bg">
     <div id="root"></div>
 
-    <script type="module">
-        import { initializeApp } from "https://www.gstatic.com/firebasejs/11.1.0/firebase-app.js";
-        import { getAuth, signInAnonymously, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/11.1.0/firebase-auth.js";
-        import { getFirestore, doc, setDoc, onSnapshot, updateDoc, collection, deleteDoc } from "https://www.gstatic.com/firebasejs/11.1.0/firebase-firestore.js";
+    <script src="https://cdn.jsdelivr.net/npm/appwrite@16.0.2"></script>
 
-        const firebaseConfig = {
-            apiKey: "AIzaSyBQwVbcCO2GHCHKL5EoEOG9Jo3ZAXGAy2o",
-            authDomain: "tavostore-4dedf.firebaseapp.com",
-            projectId: "tavostore-4dedf",
-            storageBucket: "tavostore-4dedf.firebasestorage.app",
-            messagingSenderId: "265905383641",
-            appId: "1:265905383641:web:92499c7fe2620f988f36c8"
+    <script type="module">
+        const { Client, Databases, ID, Query } = window.Appwrite;
+
+        const APPWRITE_ENDPOINT = "https://cloud.appwrite.io/v1";
+        const APPWRITE_PROJECT_ID = "REEMPLAZA_CON_TU_PROJECT_ID";
+        const APPWRITE_DATABASE_ID = "REEMPLAZA_CON_TU_DATABASE_ID";
+        const CONFIG_COLLECTION_ID = "configuracion";
+        const PRODUCTS_COLLECTION_ID = "productos";
+        const CONFIG_DOC_ID = "general";
+
+        const client = new Client()
+            .setEndpoint(APPWRITE_ENDPOINT)
+            .setProject(APPWRITE_PROJECT_ID);
+
+        const databases = new Databases(client);
+
+        const mergeDotNotation = (patch) => {
+            const out = {};
+            Object.entries(patch).forEach(([key, value]) => {
+                if (!key.includes('.')) {
+                    out[key] = value;
+                    return;
+                }
+                const keys = key.split('.');
+                let current = out;
+                keys.forEach((k, idx) => {
+                    if (idx === keys.length - 1) current[k] = value;
+                    else {
+                        if (!current[k] || typeof current[k] !== 'object') current[k] = {};
+                        current = current[k];
+                    }
+                });
+            });
+            return out;
         };
 
-        const app = initializeApp(firebaseConfig);
-        const auth = getAuth(app);
-        const db = getFirestore(app);
-        const appId = "tavostore-main-app";
+        const mergeDeep = (base, patch) => {
+            const result = { ...base };
+            Object.entries(patch).forEach(([key, value]) => {
+                if (value && typeof value === 'object' && !Array.isArray(value)) {
+                    result[key] = mergeDeep(base?.[key] || {}, value);
+                } else {
+                    result[key] = value;
+                }
+            });
+            return result;
+        };
 
-        window.fb = { db, auth, appId, doc, setDoc, onSnapshot, updateDoc, collection, deleteDoc, signInAnonymously, onAuthStateChanged };
+        const withGuard = async (fn) => {
+            if (APPWRITE_PROJECT_ID.startsWith('REEMPLAZA_') || APPWRITE_DATABASE_ID.startsWith('REEMPLAZA_')) {
+                throw new Error('Configura Appwrite en index.html antes de usar la app.');
+            }
+            return fn();
+        };
+
+        const readConfig = () => withGuard(async () => {
+            try {
+                return await databases.getDocument(APPWRITE_DATABASE_ID, CONFIG_COLLECTION_ID, CONFIG_DOC_ID);
+            } catch (error) {
+                if (error.code === 404) return null;
+                throw error;
+            }
+        });
+
+        window.storeApi = {
+            async ensureConfig(defaultData) {
+                return withGuard(async () => {
+                    const existing = await readConfig();
+                    if (existing) return existing;
+                    return databases.createDocument(APPWRITE_DATABASE_ID, CONFIG_COLLECTION_ID, CONFIG_DOC_ID, defaultData);
+                });
+            },
+            subscribeConfig(callback) {
+                let active = true;
+                const load = async () => {
+                    try {
+                        const config = await readConfig();
+                        if (active && config) callback(config);
+                    } catch (error) {
+                        console.error('Error leyendo configuración:', error);
+                    }
+                };
+                load();
+                const intervalId = setInterval(load, 3000);
+                return () => {
+                    active = false;
+                    clearInterval(intervalId);
+                };
+            },
+            subscribeProducts(callback) {
+                let active = true;
+                const load = async () => {
+                    try {
+                        const response = await withGuard(() => databases.listDocuments(APPWRITE_DATABASE_ID, PRODUCTS_COLLECTION_ID, [Query.orderAsc('$createdAt')]));
+                        if (active) callback(response.documents || []);
+                    } catch (error) {
+                        console.error('Error leyendo productos:', error);
+                    }
+                };
+                load();
+                const intervalId = setInterval(load, 3000);
+                return () => {
+                    active = false;
+                    clearInterval(intervalId);
+                };
+            },
+            async updateConfig(patch) {
+                return withGuard(async () => {
+                    const existing = (await readConfig()) || {};
+                    const expandedPatch = mergeDotNotation(patch);
+                    const payload = mergeDeep(existing, expandedPatch);
+                    delete payload.$id;
+                    delete payload.$collectionId;
+                    delete payload.$databaseId;
+                    delete payload.$createdAt;
+                    delete payload.$updatedAt;
+                    delete payload.$permissions;
+                    return databases.updateDocument(APPWRITE_DATABASE_ID, CONFIG_COLLECTION_ID, CONFIG_DOC_ID, payload);
+                });
+            },
+            async createProduct(id, data) {
+                return withGuard(() => databases.createDocument(APPWRITE_DATABASE_ID, PRODUCTS_COLLECTION_ID, id || ID.unique(), data));
+            },
+            async updateProduct(id, patch) {
+                return withGuard(() => databases.updateDocument(APPWRITE_DATABASE_ID, PRODUCTS_COLLECTION_ID, id, patch));
+            },
+            async deleteProduct(id) {
+                return withGuard(() => databases.deleteDocument(APPWRITE_DATABASE_ID, PRODUCTS_COLLECTION_ID, id));
+            }
+        };
     </script>
 
     <script src="https://unpkg.com/react@18/umd/react.production.min.js"></script>
@@ -143,7 +255,6 @@
         const { useState, useEffect, useRef } = React;
 
         const App = () => {
-            const [user, setUser] = useState(null);
             const [view, setView] = useState('store');
             const [isAdmin, setIsAdmin] = useState(false);
             const [loading, setLoading] = useState(true);
@@ -162,34 +273,27 @@
             });
 
             useEffect(() => {
-                if (!window.fb) return;
-                window.fb.signInAnonymously(window.fb.auth).then(() => {
-                    window.fb.onAuthStateChanged(window.fb.auth, setUser);
-                });
-            }, []);
+                if (!window.storeApi) return;
 
-            useEffect(() => {
-                if (!user || !window.fb) return;
-                const { db, appId, doc, collection, onSnapshot } = window.fb;
+                window.storeApi.ensureConfig({
+                    rate: data.rate,
+                    settings: data.settings
+                }).catch((error) => console.error(error));
 
-                const unsubS = onSnapshot(doc(db, 'artifacts', appId, 'public', 'data', 'configuracion', 'general'), (snap) => {
-                    if (snap.exists()) {
-                        const cloudData = snap.data();
-                        setData(prev => ({ ...prev, ...cloudData }));
-                        if (cloudData.settings?.background) {
-                            document.body.style.backgroundImage = `url('${cloudData.settings.background}')`;
-                        }
+                const unsubS = window.storeApi.subscribeConfig((cloudData) => {
+                    setData(prev => ({ ...prev, ...cloudData }));
+                    if (cloudData.settings?.background) {
+                        document.body.style.backgroundImage = `url('${cloudData.settings.background}')`;
                     }
                 });
 
-                const unsubP = onSnapshot(collection(db, 'artifacts', appId, 'public', 'data', 'productos'), (snap) => {
-                    const list = snap.docs.map(d => ({ id: d.id, ...d.data() }));
-                    setData(prev => ({ ...prev, products: list }));
+                const unsubP = window.storeApi.subscribeProducts((list) => {
+                    setData(prev => ({ ...prev, products: list.map(d => ({ id: d.$id || d.id, ...d })) }));
                     setLoading(false);
                 });
 
                 return () => { unsubS(); unsubP(); };
-            }, [user]);
+            }, []);
 
             // Función para procesar archivos locales a Base64
             const handleFileUpload = (e, callback) => {
@@ -434,7 +538,7 @@
                                             const parsedRate = normalizeRateValue(json.monitors?.bcv?.price);
                                             if(Number.isFinite(parsedRate)) {
                                                 setData(prev => ({ ...prev, rate: parsedRate }));
-                                                window.fb.updateDoc(window.fb.doc(window.fb.db, 'artifacts', window.fb.appId, 'public', 'data', 'configuracion', 'general'), { rate: parsedRate });
+                                                window.storeApi.updateConfig({ rate: parsedRate });
                                             }
                                         }} className="bg-blue-600/10 border border-blue-500/20 text-blue-500 px-5 py-2.5 rounded-2xl text-[10px] font-black uppercase flex items-center gap-2">
                                             <i className="fas fa-sync-alt"></i> Sincronizar BCV
@@ -446,11 +550,11 @@
                                         <div className="premium-glass p-8 rounded-[2rem] space-y-6">
                                             <div>
                                                 <label className="text-[9px] font-black text-slate-500 uppercase block mb-3">Tasa USD</label>
-                                                <input type="number" step="0.01" className="input-elegant font-black text-2xl" value={data.rate} onChange={e => window.fb.updateDoc(window.fb.doc(window.fb.db, 'artifacts', window.fb.appId, 'public', 'data', 'configuracion', 'general'), { rate: parseFloat(e.target.value) || 0 })} />
+                                                <input type="number" step="0.01" className="input-elegant font-black text-2xl" value={data.rate} onChange={e => window.storeApi.updateConfig({ rate: parseFloat(e.target.value) || 0 })} />
                                             </div>
                                             <div>
                                                 <label className="text-[9px] font-black text-slate-500 uppercase block mb-3">Nombre de la Tienda</label>
-                                                <input className="input-elegant font-bold uppercase" value={data.settings.logo} onChange={e => window.fb.updateDoc(window.fb.doc(window.fb.db, 'artifacts', window.fb.appId, 'public', 'data', 'configuracion', 'general'), { 'settings.logo': e.target.value })} />
+                                                <input className="input-elegant font-bold uppercase" value={data.settings.logo} onChange={e => window.storeApi.updateConfig({ 'settings.logo': e.target.value })} />
                                             </div>
                                         </div>
                                         <div className="premium-glass p-8 rounded-[2rem] space-y-6">
@@ -459,14 +563,14 @@
                                                 <div className="file-upload-btn" onClick={() => document.getElementById('bgInput').click()}>
                                                     Seleccionar Imagen de Fondo
                                                 </div>
-                                                <input id="bgInput" type="file" accept="image/*" className="hidden" onChange={e => processFlexibleImageUpload(e, (base64) => window.fb.updateDoc(window.fb.doc(window.fb.db, 'artifacts', window.fb.appId, 'public', 'data', 'configuracion', 'general'), { 'settings.background': base64 }), { maxWidth: 2400, maxHeight: 2400, quality: 0.82 })} />
+                                                <input id="bgInput" type="file" accept="image/*" className="hidden" onChange={e => processFlexibleImageUpload(e, (base64) => window.storeApi.updateConfig({ 'settings.background': base64 }), { maxWidth: 2400, maxHeight: 2400, quality: 0.82 })} />
                                             </div>
                                             <div>
                                                 <label className="text-[9px] font-black text-slate-500 uppercase block mb-3">Cambiar Banner (Local)</label>
                                                 <div className="file-upload-btn" onClick={() => document.getElementById('bannerInput').click()}>
                                                     Seleccionar Imagen de Banner
                                                 </div>
-                                                <input id="bannerInput" type="file" accept="image/*" className="hidden" onChange={e => processFlexibleImageUpload(e, (base64) => window.fb.updateDoc(window.fb.doc(window.fb.db, 'artifacts', window.fb.appId, 'public', 'data', 'configuracion', 'general'), { 'settings.banner': base64 }), { maxWidth: 2400, maxHeight: 1200, quality: 0.82 })} />
+                                                <input id="bannerInput" type="file" accept="image/*" className="hidden" onChange={e => processFlexibleImageUpload(e, (base64) => window.storeApi.updateConfig({ 'settings.banner': base64 }), { maxWidth: 2400, maxHeight: 1200, quality: 0.82 })} />
                                             </div>
                                         </div>
                                     </div>
@@ -477,7 +581,7 @@
                                             <h3 className="text-xl font-black italic uppercase">Inventario</h3>
                                             <button onClick={() => {
                                                 const id = "p_" + Date.now();
-                                                window.fb.setDoc(window.fb.doc(window.fb.db, 'artifacts', window.fb.appId, 'public', 'data', 'productos', id), { name: "Nuevo Producto", price: 10, img: "", status: "stock" });
+                                                window.storeApi.createProduct(id, { name: "Nuevo Producto", price: 10, img: "", status: "stock" });
                                             }} className="bg-white/5 border border-white/10 px-6 py-3 rounded-2xl text-[10px] font-black uppercase">+ Agregar Item</button>
                                         </div>
 
@@ -489,19 +593,19 @@
                                                         <div className="absolute inset-0 bg-black/50 opacity-0 group-hover:opacity-100 flex items-center justify-center rounded-2xl transition-opacity">
                                                             <i className="fas fa-camera text-xs"></i>
                                                         </div>
-                                                        <input id={`file_${p.id}`} type="file" className="hidden" onChange={e => handleFileUpload(e, (base64) => window.fb.updateDoc(window.fb.doc(window.fb.db, 'artifacts', window.fb.appId, 'public', 'data', 'productos', p.id), { img: base64 }))} />
+                                                        <input id={`file_${p.id}`} type="file" className="hidden" onChange={e => handleFileUpload(e, (base64) => window.storeApi.updateProduct(p.id, { img: base64 }))} />
                                                     </div>
                                                     <div className="flex-1 min-w-[200px] space-y-3">
-                                                        <input className="input-elegant text-[11px] font-bold" placeholder="Nombre" value={p.name} onChange={e => window.fb.updateDoc(window.fb.doc(window.fb.db, 'artifacts', window.fb.appId, 'public', 'data', 'productos', p.id), { name: e.target.value })} />
+                                                        <input className="input-elegant text-[11px] font-bold" placeholder="Nombre" value={p.name} onChange={e => window.storeApi.updateProduct(p.id, { name: e.target.value })} />
                                                         <div className="flex gap-3">
-                                                            <input className="input-elegant text-[11px] w-28" type="number" placeholder="Precio $" value={p.price} onChange={e => window.fb.updateDoc(window.fb.doc(window.fb.db, 'artifacts', window.fb.appId, 'public', 'data', 'productos', p.id), { price: parseFloat(e.target.value) || 0 })} />
-                                                            <select className="input-elegant text-[10px] font-black w-32" value={p.status} onChange={e => window.fb.updateDoc(window.fb.doc(window.fb.db, 'artifacts', window.fb.appId, 'public', 'data', 'productos', p.id), { status: e.target.value })}>
+                                                            <input className="input-elegant text-[11px] w-28" type="number" placeholder="Precio $" value={p.price} onChange={e => window.storeApi.updateProduct(p.id, { price: parseFloat(e.target.value) || 0 })} />
+                                                            <select className="input-elegant text-[10px] font-black w-32" value={p.status} onChange={e => window.storeApi.updateProduct(p.id, { status: e.target.value })}>
                                                                 <option value="stock">Stock</option>
                                                                 <option value="order">Encargo</option>
                                                             </select>
                                                         </div>
                                                     </div>
-                                                    <button onClick={() => window.fb.deleteDoc(window.fb.doc(window.fb.db, 'artifacts', window.fb.appId, 'public', 'data', 'productos', p.id))} className="text-red-500 w-12 h-12 rounded-2xl hover:bg-red-500/10 flex items-center justify-center"><i className="fas fa-trash-alt"></i></button>
+                                                    <button onClick={() => window.storeApi.deleteProduct(p.id)} className="text-red-500 w-12 h-12 rounded-2xl hover:bg-red-500/10 flex items-center justify-center"><i className="fas fa-trash-alt"></i></button>
                                                 </div>
                                             ))}
                                         </div>
