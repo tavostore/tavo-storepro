@@ -482,7 +482,47 @@
                                 </div>
                             </header>
 
-                            <div className="max-w-7xl mx-auto px-4 md:px-6 grid grid-cols-2 lg:grid-cols-4 gap-4 md:gap-8 -mt-12 relative z-10 pb-20">
+                            
+{/* HERO PROMO SECTION */}
+<section className="max-w-7xl mx-auto px-6 pt-20 pb-10">
+  <div className="grid md:grid-cols-2 gap-8 items-center">
+    <div className="space-y-6">
+      <h2 className="text-5xl md:text-6xl font-black italic uppercase text-white leading-tight">
+        Ofertas Especiales
+      </h2>
+      <p className="text-slate-300 text-sm md:text-base">
+        Descubre promociones exclusivas y los mejores productos de {data.settings.logo}.
+        Aprovecha nuestras ofertas limitadas y compra fácilmente desde WhatsApp.
+      </p>
+      <div className="flex gap-4">
+        <a href="#productos"
+           className="bg-blue-600 px-6 py-4 rounded-2xl text-xs font-black uppercase shadow-lg shadow-blue-600/30">
+           Ver Productos
+        </a>
+        <button
+          onClick={()=>window.open(`https://wa.me/${data.settings.whatsapp}`)}
+          className="bg-white/10 border border-white/20 px-6 py-4 rounded-2xl text-xs font-black uppercase">
+          Contactar
+        </button>
+      </div>
+    </div>
+
+    <div className="relative">
+      {data.settings.banner ? (
+        <img src={data.settings.banner}
+             className="rounded-[2rem] shadow-2xl border border-white/10"/>
+      ) : (
+        <div className="h-72 flex items-center justify-center rounded-[2rem] bg-gradient-to-br from-blue-600 to-purple-600 text-white font-black text-2xl">
+          PROMO
+        </div>
+      )}
+    </div>
+  </div>
+</section>
+
+<h2 id="productos" className="text-center text-3xl font-black italic uppercase mb-10">Productos</h2>
+
+<div className="max-w-7xl mx-auto px-4 md:px-6 grid grid-cols-2 lg:grid-cols-4 gap-4 md:gap-8 -mt-12 relative z-10 pb-20">
                                 {data.products.map(p => (
                                     <div key={p.id} className="product-card premium-glass rounded-[1.8rem] md:rounded-[2.2rem] overflow-hidden flex flex-col group">
                                         <div className="aspect-[4/5] relative overflow-hidden bg-slate-900">
