@@ -113,17 +113,14 @@
 <body id="body-bg">
     <div id="root"></div>
 
-    <script src="https://cdn.jsdelivr.net/npm/appwrite@16.0.2"></script>
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 
     <script type="module">
         const { Client, Databases, ID, Query } = window.Appwrite;
 
-        const APPWRITE_ENDPOINT = "https://cloud.appwrite.io/v1";
-        const APPWRITE_PROJECT_ID = "REEMPLAZA_CON_TU_PROJECT_ID";
-        const APPWRITE_DATABASE_ID = "REEMPLAZA_CON_TU_DATABASE_ID";
-        const CONFIG_COLLECTION_ID = "configuracion";
-        const PRODUCTS_COLLECTION_ID = "productos";
-        const CONFIG_DOC_ID = "general";
+        const supabaseUrl = 'TU_URL_DE_SUPABASE';
+        const supabaseKey = 'TU_API_KEY_PUBLICA';
+        const supabase = window.supabase.createClient(supabaseUrl, supabaseKey);
 
         const client = new Client()
             .setEndpoint(APPWRITE_ENDPOINT)
@@ -180,12 +177,14 @@
         });
 
         window.storeApi = {
-            async ensureConfig(defaultData) {
-                return withGuard(async () => {
-                    const existing = await readConfig();
-                    if (existing) return existing;
-                    return databases.createDocument(APPWRITE_DATABASE_ID, CONFIG_COLLECTION_ID, CONFIG_DOC_ID, defaultData);
-                });
+           // Ejemplo de cómo quedaría 'createProduct' en Supabase
+async createProduct(id, data) {
+    const { data: result, error } = await supabase
+        .from('productos')
+        .insert([{ id, ...data }]);
+    if (error) throw error;
+    return result;
+});
             },
             subscribeConfig(callback) {
                 let active = true;
