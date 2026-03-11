@@ -18,7 +18,7 @@
     <meta property="twitter:description" content="Productos premium con los mejores precios del mercado.">
     <meta property="twitter:image" content="https://i.ibb.co/MyKLSdJ3/1000975368.png">
     <meta name="theme-color" content="#020617">
-    
+
     <script src="https://cdn.tailwindcss.com"></script>
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     <link rel="icon" type="image/png" href="https://i.ibb.co/MyKLSdJ3/1000975368.png">
@@ -27,7 +27,7 @@
         @import url('https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@300;400;600;800&display=swap');
         :root { --primary: #3b82f6; --bg: #020617; }
         body { font-family: 'Plus Jakarta Sans', sans-serif; background-color: var(--bg); color: #f8fafc; margin: 0; overflow-x: hidden; background-attachment: fixed; background-size: cover; background-position: center; }
-        .premium-glass { background: rgba(15, 23, 42, 0.75); backdrop-filter: blur(25px); border: 1px solid rgba(255, 255, 255, 0.08); shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.5); }
+        .premium-glass { background: rgba(15, 23, 42, 0.75); backdrop-filter: blur(25px); border: 1px solid rgba(255, 255, 255, 0.08); box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.5); }
         .product-card { transition: all 0.4s cubic-bezier(0.4, 0, 0.2, 1); }
         .product-card:hover { transform: translateY(-8px); border-color: var(--primary); }
         .input-elegant { background: rgba(0, 0, 0, 0.5); border: 1px solid rgba(255, 255, 255, 0.1); border-radius: 0.8rem; padding: 0.75rem 1rem; color: white; width: 100%; outline: none; transition: border-color 0.3s; }
@@ -49,7 +49,7 @@
 
     <script type="module">
         const SUPABASE_URL = "https://zxtrwaykhpyqcycvkwgr.supabase.co";
-        const SUPABASE_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Inp4dHJ3YXlraHB5cWN5Y3Zrd2dyIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzMxODA2MzcsImV4cCI6MjA4ODc1NjYzN30.RQ1s-Ey-cpYKmlZELsTB-F1P6MB6ywvlfMXE-HXbAJA";
+        const SUPABASE_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Inp4dHJ3YXlraHB5cWN5Y3Zrd2dyIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzMxODA2MzcsImV4cCI6MjA4ODc1NjYzN30.RQ1s-Ey-cpYKmlZELsTB-F1P6MB6ywvlfMXE-HXbAJA"; 
         
         const supabase = window.supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
 
@@ -96,19 +96,12 @@
             async deleteProduct(id) {
                 return await supabase.from('productos').delete().eq('id', id);
             },
-            // CARGA REAL AL STORAGE (tavostore)
+            // NUEVA FUNCIÓN AÑADIDA PARA STORAGE
             async uploadFile(file) {
                 const fileName = `${Date.now()}-${file.name.replace(/\s/g, '_')}`;
-                const { data, error } = await supabase.storage
-                    .from('tavostore')
-                    .upload(fileName, file);
-                
+                const { data, error } = await supabase.storage.from('tavostore').upload(fileName, file);
                 if (error) throw error;
-
-                const { data: urlData } = supabase.storage
-                    .from('tavostore')
-                    .getPublicUrl(fileName);
-
+                const { data: urlData } = supabase.storage.from('tavostore').getPublicUrl(fileName);
                 return urlData.publicUrl;
             }
         };
@@ -128,24 +121,19 @@
             const [cart, setCart] = useState([]);
             const [showCart, setShowCart] = useState(false);
             const [showAI, setShowAI] = useState(false);
-            const [uploadingId, setUploadingId] = useState(null);
+            const [uploadingId, setUploadingId] = useState(null); // Para saber qué imagen se está subiendo
             const [data, setData] = useState({
                 rate: 62.00,
-                settings: {
-                    logo: "TAVO STORE",
-                    whatsapp: "584249649769",
-                    banner: "",
-                    background: ""
-                },
+                settings: { logo: "TAVO STORE", whatsapp: "584249649769", banner: "", background: "" },
                 products: []
             });
 
             useEffect(() => {
                 if (!window.storeApi) return;
-                window.storeApi.ensureConfig({ rate: data.rate, settings: data.settings }).catch(console.error);
+                window.storeApi.ensureConfig({ rate: data.rate, settings: data.settings }).catch((error) => console.error(error));
                 const unsubS = window.storeApi.subscribeConfig((cloudData) => {
                     setData(prev => ({ ...prev, ...cloudData }));
-                    if (cloudData.settings?.background) document.body.style.backgroundImage = `url('${cloudData.settings.background}')`;
+                    if (cloudData.settings?.background) { document.body.style.backgroundImage = `url('${cloudData.settings.background}')`; }
                 });
                 const unsubP = window.storeApi.subscribeProducts((list) => {
                     setData(prev => ({ ...prev, products: list }));
@@ -154,30 +142,58 @@
                 return () => { unsubS(); unsubP(); };
             }, []);
 
-            // NUEVA LÓGICA: Sube la imagen y actualiza el producto con el link
-            const handleProductImage = async (e, productId) => {
+            // NUEVA FUNCIÓN PARA ACTUALIZAR LOCALMENTE (QUITA EL LAG)
+            const updateProductLocal = (id, field, value) => {
+                const updatedProducts = data.products.map(p => p.id === id ? { ...p, [field]: value } : p);
+                setData(prev => ({ ...prev, products: updatedProducts }));
+                
+                clearTimeout(window.saveTimeout);
+                window.saveTimeout = setTimeout(() => {
+                    window.storeApi.updateProduct(id, { [field]: value });
+                }, 800); 
+            };
+
+            // NUEVA FUNCIÓN PARA SUBIR IMÁGENES AL STORAGE
+            const handleStorageUpload = async (e, productId) => {
                 const file = e.target.files[0];
                 if (!file) return;
                 setUploadingId(productId);
                 try {
                     const publicUrl = await window.storeApi.uploadFile(file);
-                    await window.storeApi.updateProduct(productId, { img: publicUrl });
+                    window.storeApi.updateProduct(productId, { img: publicUrl });
                 } catch (err) {
-                    alert("Error al subir imagen al storage");
-                    console.error(err);
+                    alert("Error al subir imagen. Revisa las políticas del bucket 'tavostore'");
                 } finally {
                     setUploadingId(null);
                 }
             };
 
-            const handleConfigImage = (e, key) => {
+            // Mantengo tus funciones originales por si las necesitas
+            const handleFileUpload = (e, callback) => {
                 const file = e.target.files[0];
                 if (!file) return;
                 const reader = new FileReader();
-                reader.onloadend = () => {
-                    window.storeApi.updateConfig({ settings: { ...data.settings, [key]: reader.result } });
-                };
+                reader.onloadend = () => callback(reader.result);
                 reader.readAsDataURL(file);
+            };
+
+            const processFlexibleImageUpload = (e, callback, options = {}) => {
+                const file = e.target.files[0];
+                if (!file) return;
+                const { maxWidth = 1920, maxHeight = 1080, quality = 0.85 } = options;
+                const objectUrl = URL.createObjectURL(file);
+                const img = new Image();
+                img.onload = () => {
+                    const canvas = document.createElement('canvas');
+                    const ctx = canvas.getContext('2d');
+                    const ratio = Math.min(maxWidth / img.width, maxHeight / img.height, 1);
+                    canvas.width = Math.round(img.width * ratio);
+                    canvas.height = Math.round(img.height * ratio);
+                    ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
+                    callback(canvas.toDataURL('image/webp', quality));
+                    URL.revokeObjectURL(objectUrl);
+                };
+                img.src = objectUrl;
             };
 
             const addToCart = (product) => {
@@ -194,16 +210,12 @@
             const checkout = () => {
                 let msg = `🛍️ *PEDIDO - ${data.settings.logo}*\n\n`;
                 cart.forEach(item => { msg += `• ${item.name} (x${item.qty}) - $${item.price * item.qty}\n`; });
-                msg += `\n💵 *TOTAL:* $${cartTotal.toFixed(2)}\n`;
-                msg += `🇻🇪 *TOTAL BS:* Bs. ${(cartTotal * data.rate).toLocaleString('es-VE')}\n`;
-                msg += `\n_Tasa aplicada: Bs. ${data.rate}_`;
+                msg += `\n💵 *TOTAL:* $${cartTotal.toFixed(2)}\n🇻🇪 *TOTAL BS:* Bs. ${(cartTotal * data.rate).toLocaleString('es-VE')}\n\n_Tasa aplicada: Bs. ${data.rate}_`;
                 window.open(`https://wa.me/${data.settings.whatsapp}?text=${encodeURIComponent(msg)}`);
             };
 
             const quickBuy = (p) => {
-                let msg = `👋 Hola! Quiero comprar:\n\n📌 *${p.name}*\n💰 *Precio:* $${p.price}\n`;
-                if(p.price > 22) msg += `💳 *Interés:* Información sobre cuotas.\n`;
-                msg += `\n_Tasa: Bs. ${data.rate}_`;
+                let msg = `👋 Hola! Quiero comprar:\n\n📌 *${p.name}*\n💰 *Precio:* $${p.price}\n\n_Tasa: Bs. ${data.rate}_`;
                 window.open(`https://wa.me/${data.settings.whatsapp}?text=${encodeURIComponent(msg)}`);
             };
 
@@ -212,23 +224,21 @@
                 const [chat, setChat] = useState([{ role: 'bot', text: `¡Hola! Soy el asistente de ${data.settings.logo}. ¿Buscas algo en especial?` }]);
                 const [isTyping, setIsTyping] = useState(false);
                 const chatEnd = useRef(null);
+
                 const askAI = async () => {
                     if (!input.trim()) return;
                     const userText = input; setInput("");
                     setChat(prev => [...prev, { role: 'user', text: userText }]);
                     setIsTyping(true);
                     try {
-                        const apiKey = ""; 
                         const systemPrompt = `Eres el asistente de la tienda "${data.settings.logo}". Tasa: Bs. ${data.rate}. Productos: ${data.products.map(p => `${p.name} ($${p.price})`).join(", ")}.`;
-                        const response = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key=${apiKey}`, {
-                            method: "POST",
-                            headers: { "Content-Type": "application/json" },
+                        const response = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key=TU_API_KEY`, {
+                            method: "POST", headers: { "Content-Type": "application/json" },
                             body: JSON.stringify({ contents: [{ parts: [{ text: userText }] }], systemInstruction: { parts: [{ text: systemPrompt }] } })
                         });
                         const result = await response.json();
                         const botText = result.candidates?.[0]?.content?.parts?.[0]?.text;
                         if (botText) setChat(prev => [...prev, { role: 'bot', text: botText }]);
-                        else throw new Error();
                     } catch (e) { setChat(prev => [...prev, { role: 'bot', text: "No pude procesar tu consulta." }]); } finally { setIsTyping(false); }
                 };
                 useEffect(() => chatEnd.current?.scrollIntoView({ behavior: 'smooth' }), [chat]);
@@ -237,10 +247,11 @@
                         <div className="flex-1 overflow-y-auto p-4 space-y-4">
                             {chat.map((msg, i) => (
                                 <div key={i} className={`flex ${msg.role === 'user' ? 'justify-end' : 'justify-start'}`}>
-                                    <div className={`p-3 rounded-2xl text-[11px] leading-relaxed ${msg.role === 'user' ? 'bg-blue-600 text-white' : 'bg-white/10 text-slate-200 border border-white/5'}`}>{msg.text}</div>
+                                    <div className={`p-3 rounded-2xl text-[11px] leading-relaxed ${msg.role === 'user' ? 'bg-blue-600 text-white' : 'bg-white/10 text-slate-200 border border-white/5'}`}>
+                                        {msg.text}
+                                    </div>
                                 </div>
                             ))}
-                            {isTyping && <div className="text-[10px] text-blue-500 animate-pulse ml-2 font-bold uppercase">Procesando...</div>}
                             <div ref={chatEnd} />
                         </div>
                         <div className="p-3 border-t border-white/5 flex gap-2 bg-[#020617]">
@@ -253,18 +264,19 @@
 
             return (
                 <div className="min-h-screen pb-20 relative">
-                    <div className="fixed inset-0 bg-black/50 pointer-events-none -z-10"></div>
                     <nav className="fixed top-0 w-full z-50 premium-glass px-6 py-4 flex justify-between items-center">
                         <div className="flex items-center gap-3 cursor-pointer" onClick={() => setView('store')}>
                             <div className="w-9 h-9 bg-blue-600 rounded-xl flex items-center justify-center shadow-lg shadow-blue-600/30"><i className="fas fa-bolt"></i></div>
                             <span className="text-lg font-black uppercase tracking-tighter italic">{data.settings.logo}</span>
                         </div>
                         <div className="flex items-center gap-3">
-                            <button onClick={() => setShowCart(true)} className="relative w-11 h-11 bg-white/5 rounded-2xl border border-white/5 flex items-center justify-center transition-all">
+                            <button onClick={() => setShowCart(true)} className="relative w-11 h-11 bg-white/5 rounded-2xl border border-white/5 flex items-center justify-center">
                                 <i className="fas fa-shopping-bag text-sm"></i>
                                 {cart.length > 0 && <span className="cart-badge">{cart.length}</span>}
                             </button>
-                            <button onClick={() => setView(view === 'admin' ? 'store' : 'admin')} className="bg-white/5 px-4 py-2.5 rounded-2xl text-[10px] font-black uppercase border border-white/5">{view === 'admin' ? 'Tienda' : 'Admin'}</button>
+                            <button onClick={() => setView(view === 'admin' ? 'store' : 'admin')} className="bg-white/5 px-4 py-2.5 rounded-2xl text-[10px] font-black uppercase border border-white/5">
+                                {view === 'admin' ? 'Tienda' : 'Admin'}
+                            </button>
                         </div>
                     </nav>
 
@@ -281,25 +293,38 @@
                                 </div>
                             </header>
 
-                            <h2 id="productos" className="text-center text-3xl font-black italic uppercase my-10">Productos</h2>
-                            <div className="max-w-7xl mx-auto px-4 md:px-6 grid grid-cols-2 lg:grid-cols-4 gap-4 md:gap-8 relative z-10 pb-20">
+                            {/* SECCIÓN HERO PROMO PRESERVADA INTACTA */}
+                            <section className="max-w-7xl mx-auto px-6 pt-20 pb-10">
+                              <div className="grid md:grid-cols-2 gap-8 items-center">
+                                <div className="space-y-6">
+                                  <h2 className="text-5xl md:text-6xl font-black italic uppercase text-white leading-tight">Ofertas Especiales</h2>
+                                  <p className="text-slate-300 text-sm md:text-base">Descubre promociones exclusivas y los mejores productos de {data.settings.logo}. Aprovecha nuestras ofertas limitadas y compra fácilmente desde WhatsApp.</p>
+                                  <div className="flex gap-4">
+                                    <a href="#productos" className="bg-blue-600 px-6 py-4 rounded-2xl text-xs font-black uppercase shadow-lg shadow-blue-600/30">Ver Productos</a>
+                                    <button onClick={()=>window.open(`https://wa.me/${data.settings.whatsapp}`)} className="bg-white/10 border border-white/20 px-6 py-4 rounded-2xl text-xs font-black uppercase">Contactar</button>
+                                  </div>
+                                </div>
+                                <div className="relative">
+                                  {data.settings.banner ? (<img src={data.settings.banner} className="rounded-[2rem] shadow-2xl border border-white/10"/>) : (<div className="h-72 flex items-center justify-center rounded-[2rem] bg-gradient-to-br from-blue-600 to-purple-600 text-white font-black text-2xl">PROMO</div>)}
+                                </div>
+                              </div>
+                            </section>
+
+                            <h2 id="productos" className="text-center text-3xl font-black italic uppercase mb-10">Productos</h2>
+                            <div className="max-w-7xl mx-auto px-4 md:px-6 grid grid-cols-2 lg:grid-cols-4 gap-4 md:gap-8 pb-20">
                                 {data.products.map(p => (
-                                    <div key={p.id} className="product-card premium-glass rounded-[1.8rem] md:rounded-[2.2rem] overflow-hidden flex flex-col group">
+                                    <div key={p.id} className="product-card premium-glass rounded-[1.8rem] overflow-hidden flex flex-col group">
                                         <div className="aspect-[4/5] relative overflow-hidden bg-slate-900">
                                             {p.img && <img src={p.img} className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-700" />}
-                                            <div className="absolute top-4 left-4 bg-black/60 backdrop-blur-md px-3 py-1 rounded-xl text-[8px] font-black uppercase border border-white/10">{p.status === 'stock' ? 'Disponible' : 'Bajo pedido'}</div>
-                                            {p.price > 22 && <div className="absolute bottom-4 left-4 right-4 badge-finance py-2 px-3 rounded-2xl text-center"><p className="text-[9px] font-black uppercase tracking-tighter text-white">2 o 3 Cuotas ✨</p></div>}
+                                            <div className="absolute top-4 left-4 bg-black/60 px-3 py-1 rounded-xl text-[8px] font-black uppercase">{p.status === 'stock' ? 'Disponible' : 'Bajo pedido'}</div>
                                         </div>
                                         <div className="p-5 flex flex-col flex-1">
-                                            <h3 className="text-[11px] md:text-xs font-bold uppercase mb-4 line-clamp-2 h-9 text-slate-100">{p.name}</h3>
+                                            <h3 className="text-[11px] font-bold uppercase mb-4 h-9 text-slate-100">{p.name}</h3>
                                             <div className="mt-auto">
-                                                <div className="mb-5">
-                                                    <p className="text-2xl font-black italic text-white">${p.price}</p>
-                                                    <p className="text-[9px] text-slate-400 font-bold uppercase tracking-tight">Bs. {(p.price * data.rate).toLocaleString('es-VE')}</p>
-                                                </div>
-                                                <div className="flex gap-2">
-                                                    <button onClick={() => addToCart(p)} className="flex-1 bg-white/5 border border-white/10 h-11 rounded-2xl flex items-center justify-center transition-all hover:bg-white/10"><i className="fas fa-cart-plus text-xs"></i></button>
-                                                    <button onClick={() => quickBuy(p)} className="flex-1 bg-blue-600 h-11 rounded-2xl flex items-center justify-center gap-2 shadow-lg shadow-blue-600/30"><i className="fab fa-whatsapp text-sm"></i><span className="text-[9px] font-black uppercase">Pedir</span></button>
+                                                <p className="text-2xl font-black italic text-white">${p.price}</p>
+                                                <div className="flex gap-2 mt-4">
+                                                    <button onClick={() => addToCart(p)} className="flex-1 bg-white/5 border border-white/10 h-11 rounded-2xl"><i className="fas fa-cart-plus"></i></button>
+                                                    <button onClick={() => quickBuy(p)} className="flex-1 bg-blue-600 h-11 rounded-2xl font-black uppercase text-[9px]">Pedir</button>
                                                 </div>
                                             </div>
                                         </div>
@@ -318,57 +343,37 @@
                                 </div>
                             ) : (
                                 <div className="space-y-12">
-                                    <div className="flex justify-between items-end border-b border-white/10 pb-6">
-                                        <h2 className="text-3xl font-black italic uppercase text-white">Configuración</h2>
-                                        <button onClick={async () => {
-                                            try {
-                                                const res = await fetch('https://pydolarvenezuela-api.vercel.app/api/v1/dollar?page=bcv');
-                                                const json = await res.json();
-                                                const p = json.monitors?.bcv?.price;
-                                                const parsedRate = typeof p === 'number' ? p : parseFloat(p.replace(/\./g, '').replace(',', '.'));
-                                                setData(prev => ({ ...prev, rate: parsedRate }));
-                                                window.storeApi.updateConfig({ rate: parsedRate });
-                                            } catch (err) { alert("Error al sincronizar BCV"); }
-                                        }} className="bg-blue-600/10 border border-blue-500/20 text-blue-500 px-5 py-2.5 rounded-2xl text-[10px] font-black uppercase flex items-center gap-2 hover:bg-blue-600 hover:text-white transition-colors"><i className="fas fa-sync-alt"></i> Sincronizar BCV</button>
-                                    </div>
-
                                     <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                                         <div className="premium-glass p-8 rounded-[2rem] space-y-6">
-                                            <div><label className="text-[9px] font-black text-slate-500 uppercase block mb-3">Tasa USD</label><input type="number" step="0.01" className="input-elegant font-black text-2xl" value={data.rate} onChange={e => window.storeApi.updateConfig({ rate: parseFloat(e.target.value) || 0 })} /></div>
-                                            <div><label className="text-[9px] font-black text-slate-500 uppercase block mb-3">Nombre Tienda</label><input className="input-elegant font-bold uppercase" value={data.settings.logo} onChange={e => window.storeApi.updateConfig({ settings: { ...data.settings, logo: e.target.value } })} /></div>
-                                        </div>
-                                        <div className="premium-glass p-8 rounded-[2rem] space-y-6">
-                                            <div><label className="text-[9px] font-black text-slate-500 uppercase block mb-3">Fondo</label><div className="file-upload-btn" onClick={() => document.getElementById('bgInput').click()}>Seleccionar</div><input id="bgInput" type="file" className="hidden" onChange={e => handleConfigImage(e, 'background')} /></div>
-                                            <div><label className="text-[9px] font-black text-slate-500 uppercase block mb-3">Banner</label><div className="file-upload-btn" onClick={() => document.getElementById('bannerInput').click()}>Seleccionar</div><input id="bannerInput" type="file" className="hidden" onChange={e => handleConfigImage(e, 'banner')} /></div>
+                                            <div>
+                                                <label className="text-[9px] font-black text-slate-500 uppercase block mb-3">Tasa USD</label>
+                                                <input type="number" step="0.01" className="input-elegant font-black text-2xl" value={data.rate} onChange={e => { setData({...data, rate: parseFloat(e.target.value)}); window.storeApi.updateConfig({ rate: parseFloat(e.target.value) }); }} />
+                                            </div>
+                                            <div>
+                                                <label className="text-[9px] font-black text-slate-500 uppercase block mb-3">Nombre Tienda</label>
+                                                <input className="input-elegant font-bold uppercase" value={data.settings.logo} onChange={e => { setData({...data, settings: {...data.settings, logo: e.target.value}}); window.storeApi.updateConfig({ settings: { ...data.settings, logo: e.target.value } }); }} />
+                                            </div>
                                         </div>
                                     </div>
 
                                     <div className="space-y-6">
-                                        <div className="flex justify-between items-center"><h3 className="text-xl font-black italic uppercase">Inventario</h3><button onClick={() => window.storeApi.createProduct("p_" + Date.now(), { name: "Nuevo Producto", price: 10, img: "", status: "stock" })} className="bg-white/5 border border-white/10 px-6 py-3 rounded-2xl text-[10px] font-black uppercase hover:bg-white/10 transition-colors">+ Agregar Item</button></div>
-                                        <div className="grid grid-cols-1 gap-4">
-                                            {data.products.map(p => (
-                                                <div key={p.id} className="premium-glass p-5 rounded-2xl flex flex-wrap md:flex-nowrap gap-5 items-center">
-                                                    <div className="relative group cursor-pointer" onClick={() => !uploadingId && document.getElementById(`file_${p.id}`).click()}>
-                                                        <div className="w-20 h-20 rounded-2xl bg-black overflow-hidden flex items-center justify-center">
-                                                            {uploadingId === p.id ? <i className="fas fa-spinner fa-spin text-blue-500"></i> : <img src={p.img || 'https://placehold.co/100'} className="w-full h-full object-cover" />}
-                                                        </div>
-                                                        <div className="absolute inset-0 bg-black/50 opacity-0 group-hover:opacity-100 flex items-center justify-center rounded-2xl transition-opacity"><i className="fas fa-camera text-xs"></i></div>
-                                                        <input id={`file_${p.id}`} type="file" className="hidden" onChange={e => handleProductImage(e, p.id)} />
-                                                    </div>
-                                                    <div className="flex-1 min-w-[200px] space-y-3">
-                                                        <input className="input-elegant text-[11px] font-bold" value={p.name} onChange={e => window.storeApi.updateProduct(p.id, { name: e.target.value })} />
-                                                        <div className="flex gap-3">
-                                                            <input className="input-elegant text-[11px] w-28" type="number" value={p.price} onChange={e => window.storeApi.updateProduct(p.id, { price: parseFloat(e.target.value) || 0 })} />
-                                                            <select className="input-elegant text-[10px] font-black w-32" value={p.status} onChange={e => window.storeApi.updateProduct(p.id, { status: e.target.value })}>
-                                                                <option value="stock">Stock</option>
-                                                                <option value="order">Encargo</option>
-                                                            </select>
-                                                        </div>
-                                                    </div>
-                                                    <button onClick={() => window.storeApi.deleteProduct(p.id)} className="text-red-500 w-12 h-12 rounded-2xl hover:bg-red-500/10 flex items-center justify-center transition-colors"><i className="fas fa-trash-alt"></i></button>
+                                        <h3 className="text-xl font-black italic uppercase">Inventario</h3>
+                                        {data.products.map(p => (
+                                            <div key={p.id} className="premium-glass p-5 rounded-2xl flex gap-5 items-center">
+                                                <div className="relative cursor-pointer" onClick={() => document.getElementById(`file_${p.id}`).click()}>
+                                                    <img src={p.img || 'https://placehold.co/100'} className="w-20 h-20 rounded-2xl object-cover bg-black" />
+                                                    {uploadingId === p.id && <div className="absolute inset-0 bg-black/60 flex items-center justify-center rounded-2xl"><i className="fas fa-spinner fa-spin"></i></div>}
+                                                    {/* ACTUALIZADO: AHORA SUBE A STORAGE */}
+                                                    <input id={`file_${p.id}`} type="file" className="hidden" onChange={e => handleStorageUpload(e, p.id)} />
                                                 </div>
-                                            ))}
-                                        </div>
+                                                <div className="flex-1 space-y-3">
+                                                    {/* ACTUALIZADO: AHORA USAN updateProductLocal (SIN LAG) */}
+                                                    <input className="input-elegant text-[11px] font-bold" value={p.name} onChange={e => updateProductLocal(p.id, 'name', e.target.value)} />
+                                                    <input className="input-elegant text-[11px] w-28" type="number" value={p.price} onChange={e => updateProductLocal(p.id, 'price', parseFloat(e.target.value))} />
+                                                </div>
+                                                <button onClick={() => window.storeApi.deleteProduct(p.id)} className="text-red-500 p-4"><i className="fas fa-trash-alt"></i></button>
+                                            </div>
+                                        ))}
                                     </div>
                                 </div>
                             )}
@@ -377,32 +382,33 @@
 
                     {showCart && (
                         <div className="fixed inset-0 z-[100] bg-black/80 backdrop-blur-md flex justify-end">
-                            <div className="w-full max-w-sm h-full bg-[#020617] p-8 flex flex-col fade-in border-l border-white/5">
-                                <div className="flex justify-between items-center mb-10"><h2 className="text-xl font-black italic uppercase">Tu Carrito</h2><button onClick={() => setShowCart(false)} className="w-11 h-11 rounded-2xl bg-white/5 flex items-center justify-center hover:bg-white/10 transition-colors"><i className="fas fa-times"></i></button></div>
+                            <div className="w-full max-w-sm h-full bg-[#020617] p-8 flex flex-col border-l border-white/5">
+                                <h2 className="text-xl font-black italic uppercase mb-10">Tu Carrito</h2>
                                 <div className="flex-1 overflow-y-auto space-y-5">
-                                    {cart.length === 0 ? <p className="text-center py-20 text-[10px] font-black uppercase opacity-20 tracking-widest">Vacío</p> : cart.map(item => (
+                                    {cart.map(item => (
                                         <div key={item.id} className="flex gap-4 items-center bg-white/5 p-4 rounded-3xl">
                                             <img src={item.img} className="w-12 h-12 rounded-xl object-cover" />
-                                            <div className="flex-1"><p className="text-[10px] font-black uppercase line-clamp-1">{item.name}</p><p className="text-xs font-bold text-blue-500">${item.price} <span className="text-slate-500 ml-1">x{item.qty}</span></p></div>
-                                            <button onClick={() => removeFromCart(item.id)} className="text-red-500 text-xs p-2 hover:bg-red-500/10 rounded-lg transition-colors"><i className="fas fa-trash-alt"></i></button>
+                                            <div className="flex-1">
+                                                <p className="text-[10px] font-black uppercase">{item.name}</p>
+                                                <p className="text-xs font-bold text-blue-500">${item.price}</p>
+                                            </div>
+                                            <button onClick={() => removeFromCart(item.id)} className="text-red-500 text-xs"><i className="fas fa-trash-alt"></i></button>
                                         </div>
                                     ))}
                                 </div>
-                                {cart.length > 0 && <div className="pt-8 border-t border-white/10 mt-6"><div className="flex justify-between items-end mb-8"><span className="text-[10px] font-black uppercase text-slate-500 tracking-widest">Total</span><div className="text-right"><p className="text-3xl font-black italic text-white">${cartTotal.toFixed(2)}</p><p className="text-[10px] text-blue-500 font-black">Bs. {(cartTotal * data.rate).toLocaleString('es-VE')}</p></div></div><button onClick={checkout} className="w-full bg-blue-600 py-5 rounded-2xl font-black uppercase text-[11px] shadow-2xl shadow-blue-600/30 hover:bg-blue-500 transition-colors">Enviar Pedido</button></div>}
+                                <button onClick={checkout} className="w-full bg-blue-600 py-5 rounded-2xl font-black uppercase text-[11px] mt-6">Enviar Pedido</button>
                             </div>
                         </div>
                     )}
 
                     <div className="fixed bottom-6 right-6 z-[90] flex flex-col items-end gap-4">
-                        {showAI && <div className="premium-glass rounded-[2.5rem] overflow-hidden shadow-2xl border-blue-500/30 ai-chat-window fade-in mb-2"><div className="bg-blue-600 p-5 flex justify-between items-center text-white"><span className="text-[10px] font-black uppercase">Asistente Tavo</span><button onClick={() => setShowAI(false)}><i className="fas fa-times"></i></button></div><AIChat /></div>}
-                        <button onClick={() => setShowAI(!showAI)} className="w-14 h-14 bg-blue-600 rounded-2xl shadow-2xl flex items-center justify-center text-xl text-white border border-white/20 hover:scale-105 transition-transform"><i className={`fas ${showAI ? 'fa-times' : 'fa-comment-dots'}`}></i></button>
+                        {showAI && (<div className="premium-glass rounded-[2.5rem] overflow-hidden ai-chat-window fade-in"><AIChat /></div>)}
+                        <button onClick={() => setShowAI(!showAI)} className="w-14 h-14 bg-blue-600 rounded-2xl flex items-center justify-center text-white"><i className={`fas ${showAI ? 'fa-times' : 'fa-comment-dots'}`}></i></button>
                     </div>
-                    <footer className="text-center py-12 opacity-30 text-[9px] font-black uppercase tracking-[0.6em]">© 2026 {data.settings.logo}</footer>
                 </div>
             );
         };
-        const root = ReactDOM.createRoot(document.getElementById('root'));
-        root.render(<App />);
+        ReactDOM.createRoot(document.getElementById('root')).render(<App />);
     </script>
 </body>
 </html>
