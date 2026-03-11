@@ -83,7 +83,6 @@
             async createProduct(id, data) { await supabase.from('productos').insert([{ id, ...data }]); },
             async updateProduct(id, patch) { await supabase.from('productos').update(patch).eq('id', id); },
             async deleteProduct(id) { await supabase.from('productos').delete().eq('id', id); },
-            // FUNCIÓN PARA STORAGE
             async uploadFile(file) {
                 const fileName = `${Date.now()}-${file.name.replace(/\s/g, '_')}`;
                 const { error } = await supabase.storage.from('tavostore').upload(fileName, file);
@@ -128,7 +127,6 @@
                 return () => { unsubS(); unsubP(); };
             }, []);
 
-            // FUNCIÓN LOCAL PARA ELIMINAR EL LAG
             const updateProductLocal = (id, field, value) => {
                 const updatedProducts = data.products.map(p => p.id === id ? { ...p, [field]: value } : p);
                 setData(prev => ({ ...prev, products: updatedProducts }));
@@ -195,7 +193,6 @@
 
             return (
                 <div className="min-h-screen pb-20 relative">
-                    {/* FONDO OSCURO RESTAURADO */}
                     <div className="fixed inset-0 bg-black/50 pointer-events-none -z-10"></div>
                     
                     <nav className="fixed top-0 w-full z-50 premium-glass px-6 py-4 flex justify-between items-center">
@@ -215,7 +212,13 @@
                     {view === 'store' ? (
                         <div className="fade-in pt-16">
                             <header className="relative h-[45vh] flex items-center justify-center overflow-hidden">
-                                {data.settings.hero_banner && <img src={data.settings.hero_banner} className="absolute inset-0 w-full h-full object-cover opacity-60" />}
+                                {data.settings.hero_banner && (
+                                    <img 
+                                        src={data.settings.hero_banner} 
+                                        className="absolute inset-0 w-full h-full object-cover"
+                                        style={{ opacity: data.settings.hero_opacity ?? 0.4 }}
+                                    />
+                                )}
                                 <div className="absolute inset-0 bg-gradient-to-t from-[#020617] via-transparent to-transparent"></div>
                                 <div className="relative text-center px-4">
                                     <h1 className="text-6xl md:text-8xl font-black italic uppercase tracking-tighter mb-4">{data.settings.logo}</h1>
@@ -225,7 +228,6 @@
                                 </div>
                             </header>
 
-                            {/* SECCIÓN HERO PROMO RESTAURADA */}
                             <section className="max-w-7xl mx-auto px-6 pt-20 pb-10">
                                 <div className="grid md:grid-cols-2 gap-8 items-center">
                                     <div className="space-y-6">
@@ -249,7 +251,6 @@
                                         <div className="aspect-[4/5] relative overflow-hidden bg-slate-900">
                                             {p.img && <img src={p.img} className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-700" />}
                                             <div className="absolute top-4 left-4 bg-black/60 backdrop-blur-md px-3 py-1 rounded-xl text-[8px] font-black uppercase border border-white/10">{p.status === 'stock' ? 'Disponible' : 'Bajo pedido'}</div>
-                                            {/* CUOTAS RESTAURADAS */}
                                             {p.price > 20 && <div className="absolute bottom-4 left-4 right-4 badge-finance py-2 px-3 rounded-2xl text-center"><p className="text-[9px] font-black uppercase tracking-tighter text-white">2 o 3 Cuotas ✨</p></div>}
                                         </div>
                                         <div className="p-5 flex flex-col flex-1">
@@ -280,7 +281,6 @@
                                 </div>
                             ) : (
                                 <div className="space-y-12">
-                                    {/* PALABRA CONFIGURACIÓN RESTAURADA */}
                                     <h2 className="text-3xl font-black italic uppercase text-white">Configuración</h2>
                                     <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                                         <div className="premium-glass p-8 rounded-[2rem] space-y-6">
@@ -288,7 +288,6 @@
                                                 <label className="text-[9px] font-black text-slate-500 uppercase block mb-3">Tasa USD</label>
                                                 <div className="flex gap-2">
                                                     <input type="number" step="0.01" className="input-elegant font-black text-2xl" value={data.rate} onChange={e => setData({...data, rate: parseFloat(e.target.value)})} />
-                                                    {/* BOTÓN ACTUALIZAR TASA RESTAURADO */}
                                                     <button onClick={() => window.storeApi.updateConfig({ rate: data.rate })} className="bg-blue-600 px-4 rounded-2xl text-[10px] font-black uppercase">Actualizar</button>
                                                 </div>
                                             </div>
@@ -301,21 +300,41 @@
                                                 }} />
                                             </div>
                                         </div>
-                                        {/* CARGA DE BANNER Y FONDO RESTAURADOS */}
+
                                         <div className="premium-glass p-8 rounded-[2rem] space-y-6">
                                             <div><label className="text-[9px] font-black text-slate-500 uppercase block mb-3">Fondo Web</label><div className="file-upload-btn" onClick={() => document.getElementById('bgInp').click()}>Subir Fondo</div><input id="bgInp" type="file" className="hidden" onChange={e => handleStorageUpload(e, 'background')} /></div>
-                                            <div><label className="text-[9px] font-black text-slate-500 uppercase block mb-3">Banner Hero</label><div className="file-upload-btn" onClick={() => document.getElementById('bnInp').click()}>Subir Banner</div><input id="bnInp" type="file" className="hidden" onChange={e => handleStorageUpload(e, 'banner')} /></div>
                                             
-                                            {/* NUEVO: Banner Hero Principal independiente */}
                                             <div><label className="text-[9px] font-black text-slate-500 uppercase block mb-3">Banner Hero Principal</label><div className="file-upload-btn" onClick={() => document.getElementById('heroInp').click()}>Subir Hero Principal</div><input id="heroInp" type="file" className="hidden" onChange={e => handleStorageUpload(e, 'hero_banner')} /></div>
                                             
-                                            {/* NUEVO: Banner Promo / Ofertas independiente */}
                                             <div><label className="text-[9px] font-black text-slate-500 uppercase block mb-3">Banner Sección Ofertas</label><div className="file-upload-btn" onClick={() => document.getElementById('promoInp').click()}>Subir Promo Banner</div><input id="promoInp" type="file" className="hidden" onChange={e => handleStorageUpload(e, 'promo_banner')} /></div>
+
+                                            {/* NUEVO: Control de opacidad del banner hero principal */}
+                                            <div>
+                                                <label className="text-[9px] font-black text-slate-500 uppercase block mb-3">Opacidad Banner Hero Principal</label>
+                                                <div className="flex gap-3 items-center">
+                                                    <input 
+                                                        type="range" 
+                                                        min="0" 
+                                                        max="1" 
+                                                        step="0.05" 
+                                                        value={data.settings.hero_opacity ?? 0.4} 
+                                                        onChange={e => {
+                                                            const newOpacity = parseFloat(e.target.value);
+                                                            const newSettings = { ...data.settings, hero_opacity: newOpacity };
+                                                            setData(prev => ({ ...prev, settings: newSettings }));
+                                                            window.storeApi.updateConfig({ settings: newSettings });
+                                                        }}
+                                                        className="w-full h-2 bg-slate-700 rounded-lg appearance-none cursor-pointer accent-blue-600"
+                                                    />
+                                                    <span className="text-xs font-bold text-slate-300 w-14 text-right">
+                                                        {Math.round((data.settings.hero_opacity ?? 0.4) * 100)}%
+                                                    </span>
+                                                </div>
+                                            </div>
                                         </div>
                                     </div>
 
                                     <div className="space-y-6">
-                                        {/* BOTÓN AGREGAR PRODUCTO RESTAURADO */}
                                         <div className="flex justify-between items-center"><h3 className="text-xl font-black italic uppercase">Inventario</h3><button onClick={() => window.storeApi.createProduct("p_"+Date.now(), {name:"Nuevo", price:10, status:"stock"})} className="bg-white/5 border border-white/10 px-6 py-3 rounded-2xl text-[10px] font-black uppercase">+ Agregar Producto</button></div>
                                         <div className="grid grid-cols-1 gap-4">
                                             {data.products.map(p => (
@@ -330,7 +349,6 @@
                                                         <input className="input-elegant text-[11px] font-bold" value={p.name} onChange={e => updateProductLocal(p.id, 'name', e.target.value)} />
                                                         <div className="flex gap-3">
                                                             <input className="input-elegant text-[11px] w-24" type="number" value={p.price} onChange={e => updateProductLocal(p.id, 'price', parseFloat(e.target.value))} />
-                                                            {/* SELECCIÓN BAJO PEDIDO O STOCK RESTAURADA */}
                                                             <select className="input-elegant text-[10px] font-black w-32" value={p.status} onChange={e => updateProductLocal(p.id, 'status', e.target.value)}>
                                                                 <option value="stock">Stock</option>
                                                                 <option value="order">Bajo Pedido</option>
@@ -350,7 +368,6 @@
                     {showCart && (
                         <div className="fixed inset-0 z-[100] bg-black/80 backdrop-blur-md flex justify-end">
                             <div className="w-full max-w-sm h-full bg-[#020617] p-8 flex flex-col border-l border-white/5">
-                                {/* X PARA SALIR DEL CARRITO RESTAURADA */}
                                 <div className="flex justify-between items-center mb-10"><h2 className="text-xl font-black italic uppercase">Carrito</h2><button onClick={() => setShowCart(false)} className="w-11 h-11 rounded-2xl bg-white/5 flex items-center justify-center"><i className="fas fa-times"></i></button></div>
                                 <div className="flex-1 overflow-y-auto space-y-5">
                                     {cart.map(item => (
