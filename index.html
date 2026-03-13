@@ -532,67 +532,114 @@
                         )}
 
                         {erpTab === 'deudas' && (
-                            <div className="space-y-6">
-                                {(() => {
-                                    const deudasPorCliente = data.ventas.reduce((acc, v) => {
-                                        if (v.estado === 'anulada') return acc;
-                                        const deuda = (v.total || 0) - (v.abono || 0);
-                                        if (deuda <= 0) return acc;
+    <div className="space-y-8">
+        <h3 className="text-2xl font-black uppercase text-red-400">Cuentas por Cobrar</h3>
 
-                                        const existente = acc.find(d => d.cliente === v.cliente);
-                                        if (existente) {
-                                            existente.totalDeuda += deuda;
-                                            existente.abonado += v.abono || 0;
-                                        } else {
-                                            acc.push({
-                                                cliente: v.cliente,
-                                                totalDeuda: deuda,
-                                                abonado: v.abono || 0,
-                                                totalInicial: v.total || 0
-                                            });
-                                        }
-                                        return acc;
-                                    }, []);
+        {(() => {
+            // Agrupamos por cliente las deudas y abonos
+            const deudas = data.ventas
+                .filter(v => v.estado !== 'anulada')
+                .reduce((acc, venta) => {
+                    const clave = venta.cliente;
+                    if (!acc[clave]) {
+                        acc[clave] = {
+                            cliente: clave,
+                            ventas: [],
+                            totalInicial: 0,
+                            totalAbonado: 0,
+                            pendiente: 0
+                        };
+                    }
+                    const inicialVenta = venta.total || 0;
+                    const abonosVenta = data.abonos
+                        .filter(a => a.venta_id === venta.id)
+                        .reduce((sum, a) => sum + (a.monto || 0), 0);
 
-                                    if (deudasPorCliente.length === 0) {
-                                        return <p className="text-center py-20 text-slate-400 italic">No hay deudas pendientes</p>;
-                                    }
+                    acc[clave].ventas.push({ ...venta, abonosVenta });
+                    acc[clave].totalInicial += inicialVenta;
+                    acc[clave].totalAbonado += abonosVenta;
+                    acc[clave].pendiente += (inicialVenta - abonosVenta);
 
-                                    return deudasPorCliente.map(d => (
-                                        <div key={d.cliente} className="premium-glass p-6 rounded-2xl flex flex-col sm:flex-row justify-between items-center gap-6">
-                                            <div className="text-center sm:text-left">
-                                                <p className="text-[10px] text-slate-400 font-black uppercase">Cliente</p>
-                                                <p className="text-xl font-black uppercase">{d.cliente}</p>
-                                            </div>
-                                            <div className="text-center">
-                                                <p className="text-sm text-slate-400">Total inicial</p>
-                                                <p className="text-2xl font-black">${d.totalInicial.toLocaleString()}</p>
-                                            </div>
-                                            <div className="text-center">
-                                                <p className="text-sm text-emerald-400">Abonado</p>
-                                                <p className="text-2xl font-black text-emerald-400">${d.abonado.toLocaleString()}</p>
-                                            </div>
-                                            <div className="text-center">
-                                                <p className="text-sm text-red-400">Pendiente</p>
-                                                <p className="text-2xl font-black text-red-400">${d.totalDeuda.toLocaleString()}</p>
-                                            </div>
-                                            <button
-                                                onClick={() => {
-                                                    const monto = prompt(`¿Cuánto abona ${d.cliente}? (deuda pendiente: $${d.totalDeuda})`, "0");
-                                                    if (monto && !isNaN(monto) && Number(monto) > 0) {
-                                                        alert(`Abono de $${monto} registrado para ${d.cliente}. (Actualización en tiempo real)`);
-                                                        // Aquí podrías implementar la lógica real de abono si deseas
-                                                    }
-                                                }}
-                                                className="bg-blue-600 px-8 py-3 rounded-2xl font-black text-sm hover:bg-blue-700 transition"
-                                            >
-                                                Registrar Abono
-                                            </button>
-                                        </div>
-                                    ));
-                                })()}
+                    return acc;
+                }, {});
+
+            const clientesConDeuda = Object.values(deudas).filter(c => c.pendiente > 0);
+
+            if (clientesConDeuda.length === 0) {
+                return <p className="text-center py-16 text-slate-400 italic text-lg">No hay deudas pendientes en este momento.</p>;
+            }
+
+            return clientesConDeuda.map(cliente => (
+                <div key={cliente.cliente} className="premium-glass p-6 rounded-3xl">
+                    <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-6 mb-6">
+                        <div>
+                            <p className="text-sm text-slate-400 uppercase font-black tracking-wider">Cliente</p>
+                            <h4 className="text-2xl font-black uppercase">{cliente.cliente}</h4>
+                        </div>
+                        <div className="text-right">
+                            <p className="text-sm text-slate-400">Saldo pendiente</p>
+                            <p className="text-3xl font-black text-red-400">${cliente.pendiente.toLocaleString()}</p>
+                        </div>
+                    </div>
+
+                    <div className="grid grid-cols-1 sm:grid-cols-3 gap-6 mb-6">
+                        <div className="bg-white/5 p-5 rounded-2xl text-center">
+                            <p className="text-sm text-slate-400">Total inicial</p>
+                            <p className="text-xl font-black">${cliente.totalInicial.toLocaleString()}</p>
+                        </div>
+                        <div className="bg-white/5 p-5 rounded-2xl text-center">
+                            <p className="text-sm text-emerald-400">Total abonado</p>
+                            <p className="text-xl font-black text-emerald-400">${cliente.totalAbonado.toLocaleString()}</p>
+                        </div>
+                        <div className="bg-white/5 p-5 rounded-2xl text-center">
+                            <p className="text-sm text-red-400">Por pagar</p>
+                            <p className="text-xl font-black text-red-400">${cliente.pendiente.toLocaleString()}</p>
+                        </div>
+                    </div>
+
+                    <button
+                        onClick={async () => {
+                            const montoStr = prompt(`¿Cuánto abona ${cliente.cliente}? (pendiente: $${cliente.pendiente})`, "0");
+                            const monto = parseFloat(montoStr);
+                            if (!isNaN(monto) && monto > 0) {
+                                try {
+                                    // Registramos un abono general para el cliente
+                                    // (puedes mejorarlo asociándolo a una venta específica si quieres)
+                                    await supabase.from('abonos').insert([{
+                                        cliente: cliente.cliente,
+                                        monto,
+                                        fecha: new Date().toISOString()
+                                    }]);
+                                    alert(`Abono de $${monto} registrado correctamente para ${cliente.cliente}`);
+                                } catch (err) {
+                                    alert("Error al registrar el abono");
+                                }
+                            }
+                        }}
+                        className="bg-blue-600 hover:bg-blue-700 px-8 py-4 rounded-2xl font-black text-white transition w-full sm:w-auto"
+                    >
+                        Registrar Nuevo Abono
+                    </button>
+
+                    {/* Opcional: mostrar detalle de cada venta con su abono */}
+                    {cliente.ventas.length > 1 && (
+                        <div className="mt-8">
+                            <p className="text-sm text-slate-400 mb-3">Detalle de ventas con deuda:</p>
+                            <div className="space-y-3">
+                                {cliente.ventas.map(v => (
+                                    <div key={v.id} className="bg-white/5 p-4 rounded-2xl flex justify-between text-sm">
+                                        <span>Factura del {new Date(v.fecha).toLocaleDateString()}</span>
+                                        <span className="font-medium">Pendiente: ${(v.total - v.abonosVenta).toLocaleString()}</span>
+                                    </div>
+                                ))}
                             </div>
-                        )}
+                        </div>
+                    )}
+                </div>
+            ));
+        })()}
+    </div>
+)}
 
                         {showInvoice && lastSale && (
                             <div className="fixed inset-0 bg-black/80 backdrop-blur-md flex items-center justify-center z-[200]">
