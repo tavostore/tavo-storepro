@@ -194,23 +194,21 @@
                 abonos: []
             });
 
-            // Función para obtener y actualizar tasa BCV + fecha
+            // Función actualizada con proxy CORS
             const actualizarTasaBCV = async () => {
                 try {
-                    const response = await fetch('https://bcv-api.rafnixg.dev/v1/exchange-rates/latest/USD');
+                    const proxyUrl = 'https://corsproxy.io/?' + encodeURIComponent('https://bcv-api.rafnixg.dev/v1/exchange-rates/latest/USD');
+                    const response = await fetch(proxyUrl);
                     const apiData = await response.json();
                     const nuevaTasa = parseFloat(apiData.rate);
                     if (!isNaN(nuevaTasa)) {
-                        // Actualiza el estado (por si se usa en otros lugares)
                         setData(prev => ({ ...prev, rate: nuevaTasa }));
 
-                        // Actualiza directamente el texto de la tasa en pantalla
                         const tasaElem = document.getElementById('tasa-dolar');
                         if (tasaElem) {
                             tasaElem.textContent = `Bs. ${nuevaTasa.toFixed(2)}`;
                         }
 
-                        // Actualiza la fecha/hora de actualización
                         const fechaElem = document.getElementById('fecha-actualizacion');
                         if (fechaElem) {
                             const ahora = new Date();
@@ -242,10 +240,10 @@
                     setData(prev => ({ ...prev, abonos: list }));
                 });
 
-                // Cargar tasa BCV al iniciar la página
+                // Cargar tasa al iniciar
                 actualizarTasaBCV();
 
-                // Actualizar automáticamente cada hora
+                // Actualizar cada hora
                 const interval = setInterval(actualizarTasaBCV, 3600000);
 
                 return () => {
