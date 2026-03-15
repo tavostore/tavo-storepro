@@ -669,7 +669,6 @@
 
                     {view === 'store' ? (
                         <div className="fade-in">
-                            {/* BANNER PRINCIPAL - Degradado SOLO en la parte inferior */}
                             <header className="relative h-[55vh] md:h-[65vh] flex items-center justify-center overflow-hidden">
                                 {data.settings.hero_banner && (
                                     <img
@@ -678,7 +677,6 @@
                                         style={{ opacity: data.settings.hero_opacity ?? 0.4 }}
                                     />
                                 )}
-                                {/* Degradado SOLO abajo para fundirse con el fondo oscuro */}
                                 <div 
                                     className="absolute inset-0 pointer-events-none"
                                     style={{
@@ -708,11 +706,30 @@
                                             <button onClick={() => window.open(`https://wa.me/${data.settings.whatsapp}`)} className="bg-white/10 border border-white/20 px-6 py-4 rounded-2xl text-xs font-black uppercase">Contactar</button>
                                         </div>
                                     </div>
-                                    <div className="relative">
+                                    <div className="relative rounded-[2rem] overflow-hidden shadow-2xl border border-white/10">
                                         {data.settings.promo_banner ? (
-                                            <img src={data.settings.promo_banner} className="rounded-[2rem] shadow-2xl border border-white/10" />
+                                            <>
+                                                {data.settings.promo_banner.toLowerCase().match(/\.(mp4|webm|ogg)$/i) ? (
+                                                    <video
+                                                        src={data.settings.promo_banner}
+                                                        autoPlay
+                                                        loop
+                                                        muted
+                                                        playsInline
+                                                        className="w-full h-full object-cover"
+                                                    />
+                                                ) : (
+                                                    <img
+                                                        src={data.settings.promo_banner}
+                                                        className="w-full h-full object-cover"
+                                                        alt="Banner promocional"
+                                                    />
+                                                )}
+                                            </>
                                         ) : (
-                                            <div className="h-72 flex items-center justify-center rounded-[2rem] bg-gradient-to-br from-blue-600 to-purple-600 text-white font-black text-2xl uppercase italic">Promo</div>
+                                            <div className="h-72 flex items-center justify-center bg-gradient-to-br from-blue-600 to-purple-600 text-white font-black text-2xl uppercase italic">
+                                                Promo
+                                            </div>
                                         )}
                                     </div>
                                 </div>
@@ -785,7 +802,7 @@
                                                 <div className="premium-glass p-8 rounded-[2rem] space-y-6">
                                                     <div><label className="text-[9px] font-black text-slate-500 uppercase block mb-3">Fondo Web</label><div className="file-upload-btn" onClick={() => document.getElementById('bgInp').click()}>Subir Fondo</div><input id="bgInp" type="file" className="hidden" onChange={e => handleStorageUpload(e, 'background')} /></div>
                                                     <div><label className="text-[9px] font-black text-slate-500 uppercase block mb-3">Banner Hero Principal</label><div className="file-upload-btn" onClick={() => document.getElementById('heroInp').click()}>Subir Hero Principal</div><input id="heroInp" type="file" className="hidden" onChange={e => handleStorageUpload(e, 'hero_banner')} /></div>
-                                                    <div><label className="text-[9px] font-black text-slate-500 uppercase block mb-3">Banner Sección Ofertas</label><div className="file-upload-btn" onClick={() => document.getElementById('promoInp').click()}>Subir Promo Banner</div><input id="promoInp" type="file" className="hidden" onChange={e => handleStorageUpload(e, 'promo_banner')} /></div>
+                                                    <div><label className="text-[9px] font-black text-slate-500 uppercase block mb-3">Banner Sección Ofertas / Video Publicitario</label><div className="file-upload-btn" onClick={() => document.getElementById('promoInp').click()}>Subir Promo Banner o Video</div><input id="promoInp" type="file" className="hidden" onChange={e => handleStorageUpload(e, 'promo_banner')} /></div>
                                                     <div>
                                                         <label className="text-[9px] font-black text-slate-500 uppercase block mb-3">Opacidad Banner Hero Principal</label>
                                                         <div className="flex gap-3 items-center">
