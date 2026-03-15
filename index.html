@@ -194,11 +194,11 @@
                 abonos: []
             });
 
-            // Función actualizada con proxy CORS
             const actualizarTasaBCV = async () => {
                 try {
-                    const proxyUrl = 'https://corsproxy.io/?' + encodeURIComponent('https://bcv-api.rafnixg.dev/v1/exchange-rates/latest/USD');
+                    const proxyUrl = 'https://api.allorigins.win/raw?url=' + encodeURIComponent('https://bcv-api.rafnixg.dev/v1/exchange-rates/latest/USD');
                     const response = await fetch(proxyUrl);
+                    if (!response.ok) throw new Error(`HTTP ${response.status}`);
                     const apiData = await response.json();
                     const nuevaTasa = parseFloat(apiData.rate);
                     if (!isNaN(nuevaTasa)) {
@@ -240,10 +240,8 @@
                     setData(prev => ({ ...prev, abonos: list }));
                 });
 
-                // Cargar tasa al iniciar
                 actualizarTasaBCV();
 
-                // Actualizar cada hora
                 const interval = setInterval(actualizarTasaBCV, 3600000);
 
                 return () => {
