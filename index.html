@@ -669,7 +669,7 @@
 
                     {view === 'store' ? (
                         <div className="fade-in">
-                            {/* BANNER PRINCIPAL - Solo mejoramos el degradado final del recuadro */}
+                            {/* BANNER PRINCIPAL - Degradado SOLO en la parte inferior */}
                             <header className="relative h-[55vh] md:h-[65vh] flex items-center justify-center overflow-hidden">
                                 {data.settings.hero_banner && (
                                     <img
@@ -678,8 +678,13 @@
                                         style={{ opacity: data.settings.hero_opacity ?? 0.4 }}
                                     />
                                 )}
-                                {/* Degradado MÁS LARGO y SUAVE solo en la parte inferior del banner */}
-                                <div className="absolute inset-0 bg-gradient-to-b from-transparent via-transparent via-50% to-[#020617]/98 pointer-events-none"></div>
+                                {/* Degradado SOLO abajo para fundirse con el fondo oscuro */}
+                                <div 
+                                    className="absolute inset-0 pointer-events-none"
+                                    style={{
+                                        background: 'linear-gradient(to bottom, transparent 70%, #020617 100%)'
+                                    }}
+                                ></div>
 
                                 <div className="relative text-center px-4 z-10">
                                     <h1 className="text-6xl md:text-8xl font-black italic uppercase tracking-tighter mb-4">
