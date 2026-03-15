@@ -40,13 +40,6 @@
         .file-upload-btn { background: rgba(255, 255, 255, 0.05); border: 1px dashed rgba(255, 255, 255, 0.2); padding: 10px; border-radius: 12px; text-align: center; cursor: pointer; font-size: 10px; font-weight: bold; text-transform: uppercase; }
         ::-webkit-scrollbar { width: 6px; }
         ::-webkit-scrollbar-thumb { background: #1e293b; border-radius: 10px; }
-        /* Mejora de transición suave en el banner */
-        .hero-gradient {
-            background: linear-gradient(to bottom, transparent 0%, transparent 60%, #020617 100%);
-        }
-        .section-transition {
-            background: linear-gradient(to top, #020617 0%, rgba(2, 6, 23, 0.8) 30%, rgba(2, 6, 23, 0) 100%);
-        }
     </style>
 </head>
 <body id="body-bg">
@@ -676,8 +669,8 @@
 
                     {view === 'store' ? (
                         <div className="fade-in">
-                            {/* BANNER PRINCIPAL - TRANSICIÓN SUAVE */}
-                            <header className="relative h-[60vh] md:h-[70vh] flex items-center justify-center overflow-hidden">
+                            {/* BANNER PRINCIPAL - Solo mejoramos el degradado final del recuadro */}
+                            <header className="relative h-[55vh] md:h-[65vh] flex items-center justify-center overflow-hidden">
                                 {data.settings.hero_banner && (
                                     <img
                                         src={data.settings.hero_banner}
@@ -685,8 +678,8 @@
                                         style={{ opacity: data.settings.hero_opacity ?? 0.4 }}
                                     />
                                 )}
-                                {/* Degradado más largo y suave para eliminar la línea cortante */}
-                                <div className="absolute inset-0 hero-gradient pointer-events-none"></div>
+                                {/* Degradado MÁS LARGO y SUAVE solo en la parte inferior del banner */}
+                                <div className="absolute inset-0 bg-gradient-to-b from-transparent via-transparent via-50% to-[#020617]/98 pointer-events-none"></div>
 
                                 <div className="relative text-center px-4 z-10">
                                     <h1 className="text-6xl md:text-8xl font-black italic uppercase tracking-tighter mb-4">
@@ -700,8 +693,7 @@
                                 </div>
                             </header>
 
-                            {/* Sección de Ofertas - degradado sutil al inicio para fundirse mejor */}
-                            <section className="max-w-7xl mx-auto px-6 pt-20 pb-10 relative section-transition">
+                            <section className="max-w-7xl mx-auto px-6 pt-20 pb-10">
                                 <div className="grid md:grid-cols-2 gap-8 items-center">
                                     <div className="space-y-6">
                                         <h2 className="text-5xl md:text-6xl font-black italic uppercase text-white leading-tight">Ofertas Especiales</h2>
