@@ -654,16 +654,29 @@
                     <div className="fixed inset-0 bg-black/50 pointer-events-none -z-10"></div>
 
                     <nav className="fixed top-0 w-full z-50 premium-glass px-6 py-4 flex justify-between items-center">
-                        <div className="flex items-center gap-3 cursor-pointer" onClick={() => setView('store')}>
-                            <div className="w-9 h-9 bg-blue-600 rounded-xl flex items-center justify-center shadow-lg shadow-blue-600/30"><i className="fas fa-bolt"></i></div>
+                        {/* Logo con doble clic para entrar a admin (botón oculto) */}
+                        <div 
+                            className="flex items-center gap-3 cursor-pointer" 
+                            onDoubleClick={() => setView(view === 'admin' ? 'store' : 'admin')}
+                        >
+                            <div className="w-9 h-9 bg-blue-600 rounded-xl flex items-center justify-center shadow-lg shadow-blue-600/30">
+                                <i className="fas fa-bolt"></i>
+                            </div>
                             <span className="text-lg font-black uppercase tracking-tighter italic">{data.settings.logo}</span>
                         </div>
+
                         <div className="flex items-center gap-3">
                             <button onClick={() => setShowCart(true)} className="relative w-11 h-11 bg-white/5 rounded-2xl border border-white/5 flex items-center justify-center">
                                 <i className="fas fa-shopping-bag text-sm"></i>
                                 {cart.length > 0 && <span className="cart-badge">{cart.length}</span>}
                             </button>
-                            <button onClick={() => setView(view === 'admin' ? 'store' : 'admin')} className="bg-white/5 px-4 py-2.5 rounded-2xl text-[10px] font-black uppercase border border-white/5">{view === 'admin' ? 'Tienda' : 'Admin'}</button>
+
+                            {/* Botón Admin solo visible cuando ya estás dentro */}
+                            {view === 'admin' && (
+                                <button onClick={() => setView('store')} className="bg-white/5 px-4 py-2.5 rounded-2xl text-[10px] font-black uppercase border border-white/5">
+                                    Tienda
+                                </button>
+                            )}
                         </div>
                     </nav>
 
@@ -766,8 +779,25 @@
                             {!isAdmin ? (
                                 <div className="flex items-center justify-center h-[50vh]">
                                     <div className="premium-glass p-10 rounded-[3rem] w-full max-w-xs text-center">
-                                        <input type="password" placeholder="Clave" className="input-elegant text-center mb-6" onKeyDown={e => e.key === 'Enter' && e.target.value === 'tavo2026' && setIsAdmin(true)} />
-                                        <button onClick={(e) => e.target.previousSibling.value === 'tavo2026' ? setIsAdmin(true) : alert('Clave incorrecta')} className="w-full bg-blue-600 py-4 rounded-2xl font-black uppercase text-[11px]">Acceder</button>
+                                        <input 
+                                            type="password" 
+                                            placeholder="Clave" 
+                                            className="input-elegant text-center mb-6" 
+                                            onKeyDown={e => e.key === 'Enter' && e.target.value === 'tavo2026' && setIsAdmin(true)}
+                                        />
+                                        <button 
+                                            onClick={(e) => {
+                                                const input = e.target.previousSibling;
+                                                if (input.value === 'tavo2026') {
+                                                    setIsAdmin(true);
+                                                } else {
+                                                    alert('Clave incorrecta');
+                                                }
+                                            }} 
+                                            className="w-full bg-blue-600 py-4 rounded-2xl font-black uppercase text-[11px]"
+                                        >
+                                            Acceder
+                                        </button>
                                     </div>
                                 </div>
                             ) : (
