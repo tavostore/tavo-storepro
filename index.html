@@ -109,6 +109,40 @@
                     console.error("Error Supabase al registrar abono:", error.message, error.details, error.hint);
                     throw new Error(`Error al guardar abono: ${error.message || 'Desconocido'}`);
                 }
+
+                // === NUEVO: Verificar si la venta ya está pagada completamente ===
+                if (data.venta_id) {
+                    try {
+                        // Obtener la venta actual
+                        const { data: venta, error: errVenta } = await supabase
+                            .from('ventas')
+                            .select('total, abono')
+                            .eq('id', data.venta_id)
+                            .single();
+
+                        if (errVenta || !venta) throw errVenta || new Error("Venta no encontrada");
+
+                        // Calcular abonos totales de esta venta (incluyendo el nuevo)
+                        const { data: abonosVenta } = await supabase
+                            .from('abonos')
+                            .select('monto')
+                            .eq('venta_id', data.venta_id);
+
+                        const totalAbonado = (venta.abono || 0) + 
+                            (abonosVenta?.reduce((sum, a) => sum + Number(a.monto || 0), 0) || 0);
+
+                        // Si ya está pagada → actualizar estado a 'pagada'
+                        if (totalAbonado >= venta.total) {
+                            await supabase
+                                .from('ventas')
+                                .update({ estado: 'pagada' })
+                                .eq('id', data.venta_id);
+                        }
+                    } catch (err) {
+                        console.error("Error al verificar/actualizar estado de venta:", err);
+                        // No interrumpimos el flujo si falla esta parte
+                    }
+                }
             },
             subscribeAbonos(callback) {
                 const load = async () => {
@@ -438,8 +472,12 @@
                                                 <td className="py-4 font-black">{v.cliente}</td>
                                                 <td className="py-4">${v.total}</td>
                                                 <td className="py-4">
-                                                    <span className={`px-3 py-1 rounded-full text-xs ${v.estado === 'anulada' ? 'bg-red-500/30 text-red-300' : 'bg-emerald-500/30 text-emerald-300'}`}>
-                                                        {v.estado.toUpperCase()}
+                                                    <span className={`px-3 py-1 rounded-full text-xs font-medium ${
+                                                        v.estado === 'pagada' ? 'bg-emerald-500/30 text-emerald-300' :
+                                                        v.estado === 'anulada' ? 'bg-red-500/30 text-red-300' :
+                                                        'bg-yellow-500/30 text-yellow-300'
+                                                    }`}>
+                                                        {v.estado === 'pagada' ? 'Pagada ✓' : v.estado === 'anulada' ? 'Anulada' : 'Activa'}
                                                     </span>
                                                 </td>
                                                 <td className="py-4 text-center">
@@ -473,7 +511,7 @@
                                     const abonos = Array.isArray(data.abonos) ? data.abonos : [];
 
                                     const deudasPorCliente = ventas
-                                        .filter(v => v && v.estado !== 'anulada' && v.cliente)
+                                        .filter(v => v && v.estado !== 'anulada' && v.estado !== 'pagada' && v.cliente)
                                         .reduce((acc, venta) => {
                                             const clave = (venta.cliente || 'Sin cliente').trim();
                                             if (!acc[clave]) {
