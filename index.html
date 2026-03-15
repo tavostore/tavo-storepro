@@ -90,15 +90,24 @@
                     .subscribe();
                 return () => supabase.removeChannel(channel);
             },
-            // === FUNCIONES AÑADIDAS PARA ABONOS ===
+            // === FUNCIONES PARA ABONOS ===
             async registrarAbono(data) {
-                const { error } = await supabase.from('abonos').insert([{
-                    ...data,
-                    fecha: new Date().toISOString()
-                }]);
+                if (!data.cliente || !data.monto || isNaN(data.monto) || data.monto <= 0) {
+                    throw new Error("Datos inválidos: cliente y monto son requeridos y monto debe ser mayor a 0");
+                }
+
+                const payload = {
+                    cliente: data.cliente,
+                    monto: Number(data.monto),
+                    fecha: new Date().toISOString(),
+                    venta_id: data.venta_id || null
+                };
+
+                const { error } = await supabase.from('abonos').insert([payload]);
+
                 if (error) {
-                    console.error("Error al registrar abono:", error);
-                    throw error;
+                    console.error("Error Supabase al registrar abono:", error.message, error.details, error.hint);
+                    throw new Error(`Error al guardar abono: ${error.message || 'Desconocido'}`);
                 }
             },
             subscribeAbonos(callback) {
@@ -155,7 +164,7 @@
                 settings: { logo: "TAVO STORE", whatsapp: "584249649769", banner: "", background: "", hero_banner: "", promo_banner: "", hero_opacity: 0.4 },
                 products: [],
                 ventas: [],
-                abonos: []   // ← añadido correctamente sin coma extra
+                abonos: []
             });
 
             useEffect(() => {
@@ -172,7 +181,6 @@
                     setData(prev => ({ ...prev, ventas: list }));
                 });
 
-                // === AÑADIDO: suscripción a abonos ===
                 const unsubA = window.storeApi.subscribeAbonos((list) => {
                     setData(prev => ({ ...prev, abonos: list }));
                 });
@@ -181,7 +189,7 @@
                     unsubS();
                     unsubP();
                     unsubV();
-                    unsubA();   // ← añadido para limpiar suscripción
+                    unsubA();
                 };
             }, []);
 
@@ -563,10 +571,12 @@
                                                             ""
                                                         );
 
-                                                        const monto = parseFloat(montoStr?.replace(/[^0-9.]/g, ''));
+                                                        if (montoStr === null) return;
+
+                                                        const monto = parseFloat(montoStr.replace(/[^0-9.]/g, ''));
 
                                                         if (isNaN(monto) || monto <= 0) {
-                                                            if (montoStr) alert("Ingresa un monto válido mayor a 0.");
+                                                            alert("Por favor ingresa un monto válido mayor a 0.");
                                                             return;
                                                         }
 
@@ -590,7 +600,7 @@
                                                             alert(`¡Abono de $${monto.toLocaleString()} registrado con éxito!`);
                                                         } catch (err) {
                                                             console.error("Error al registrar abono:", err);
-                                                            alert("No se pudo registrar el abono. Revisa la consola.");
+                                                            alert(`Error: ${err.message || 'No se pudo guardar el abono. Revisa la consola.'}`);
                                                         }
                                                     }}
                                                     className="flex-1 bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700 px-6 py-4 rounded-2xl font-black text-white text-lg shadow-lg shadow-blue-900/30 transition-all duration-300"
