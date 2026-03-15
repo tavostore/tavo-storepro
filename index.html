@@ -90,10 +90,24 @@
                     .subscribe();
                 return () => supabase.removeChannel(channel);
             },
-             // ==============================================
+            // === FUNCIONES AÑADIDAS PARA ABONOS ===
+            async registrarAbono(data) {
+                const { error } = await supabase.from('abonos').insert([{
+                    ...data,
+                    fecha: new Date().toISOString()
+                }]);
+                if (error) {
+                    console.error("Error al registrar abono:", error);
+                    throw error;
+                }
+            },
             subscribeAbonos(callback) {
                 const load = async () => {
-                    const { data } = await supabase.from('abonos').select('*').order('fecha', { ascending: false });
+                    const { data, error } = await supabase
+                        .from('abonos')
+                        .select('*')
+                        .order('fecha', { ascending: false });
+                    if (error) console.error("Error cargando abonos:", error);
                     callback(data || []);
                 };
                 load();
@@ -102,7 +116,7 @@
                     .subscribe();
                 return () => supabase.removeChannel(channel);
             },
-            
+            // === FIN FUNCIONES ABONOS ===
             async updateConfig(patch) { await supabase.from('configuracion').update(patch).eq('id', 'general'); },
             async createProduct(id, data) { await supabase.from('productos').insert([{ id, ...data }]); },
             async updateProduct(id, patch) { await supabase.from('productos').update(patch).eq('id', id); },
@@ -117,10 +131,6 @@
             async createVenta(data) { await supabase.from('ventas').insert([data]); },
             async anularVenta(id) { await supabase.from('ventas').update({ estado: 'anulada' }).eq('id', id); },
             async updateProductStock(id, newStock) { await supabase.from('productos').update({ stock: newStock }).eq('id', id); }
-            async registrarAbono(data) {
-                const { error } = await supabase.from('abonos').insert([data]);
-                if (error) throw error;
-            },
         };
     </script>
 
@@ -134,7 +144,7 @@
         const App = () => {
             const [view, setView] = useState('store');
             const [isAdmin, setIsAdmin] = useState(false);
-            const [adminTab, setAdminTab] = useState('config'); // pestaña activa en admin
+            const [adminTab, setAdminTab] = useState('config');
             const [loading, setLoading] = useState(true);
             const [cart, setCart] = useState([]);
             const [showCart, setShowCart] = useState(false);
@@ -145,7 +155,7 @@
                 settings: { logo: "TAVO STORE", whatsapp: "584249649769", banner: "", background: "", hero_banner: "", promo_banner: "", hero_opacity: 0.4 },
                 products: [],
                 ventas: [],
-                abonos: []
+                abonos: []   // ← añadido correctamente sin coma extra
             });
 
             useEffect(() => {
@@ -161,12 +171,24 @@
                 const unsubV = window.storeApi.subscribeVentas((list) => {
                     setData(prev => ({ ...prev, ventas: list }));
                 });
-                return () => { unsubS(); unsubP(); unsubV(); };
+
+                // === AÑADIDO: suscripción a abonos ===
+                const unsubA = window.storeApi.subscribeAbonos((list) => {
+                    setData(prev => ({ ...prev, abonos: list }));
+                });
+
+                return () => {
+                    unsubS();
+                    unsubP();
+                    unsubV();
+                    unsubA();   // ← añadido para limpiar suscripción
+                };
             }, []);
 
             const updateProductLocal = (id, field, value) => {
                 const updatedProducts = data.products.map(p => p.id === id ? { ...p, [field]: value } : p);
                 setData(prev => ({ ...prev, products: updatedProducts }));
+                
                 clearTimeout(window.saveTimeout);
                 window.saveTimeout = setTimeout(() => {
                     window.storeApi.updateProduct(id, { [field]: value });
@@ -206,11 +228,6 @@
                 msg += `\n💵 *TOTAL:* $${cartTotal.toFixed(2)}\n`;
                 window.open(`https://wa.me/${data.settings.whatsapp}?text=${encodeURIComponent(msg)}`);
             };
-         // ==============================================
-        const unsubA = window.storeApi.subscribeAbonos(list => {
-    setData(prev => ({ ...prev, abonos: list }));
-});
-return () => { unsubS(); unsubP(); unsubV(); unsubA(); };
 
             const AIChat = () => {
                 const [input, setInput] = useState("");
@@ -232,9 +249,6 @@ return () => { unsubS(); unsubP(); unsubV(); unsubA(); };
                 );
             };
 
-            // ==============================================
-            // COMPONENTE ERP (nueva pestaña en admin)
-            // ==============================================
             const ERP = () => {
                 const [erpTab, setErpTab] = useState('venta');
                 const [cliente, setCliente] = useState("");
@@ -266,7 +280,6 @@ return () => { unsubS(); unsubP(); unsubV(); unsubA(); };
                 const processSale = async () => {
                     if (!cliente.trim() || cartERP.length === 0) return alert("Faltan datos");
                     try {
-                        // Actualizar stock si es producto existente
                         for (const item of cartERP) {
                             if (item.productoId) {
                                 const prod = data.products.find(p => p.id === item.productoId);
@@ -290,9 +303,7 @@ return () => { unsubS(); unsubP(); unsubV(); unsubA(); };
                         setLastSale(saleData);
                         setShowInvoice(true);
                         setCartERP([]); setCliente(""); setAbono(0);
-                    } catch (e) {
-                        alert("Error al procesar la venta");
-                    }
+                    } catch (e) { alert("Error al procesar la venta"); }
                 };
 
                 const downloadInvoice = (sale) => {
@@ -300,78 +311,31 @@ return () => { unsubS(); unsubP(); unsubV(); unsubA(); };
                     canvas.width = 450;
                     canvas.height = 600 + (sale.items.length * 30);
                     const ctx = canvas.getContext('2d');
-
-                    ctx.fillStyle = "#ffffff";
-                    ctx.fillRect(0, 0, canvas.width, canvas.height);
-
-                    ctx.fillStyle = "#3b82f6";
-                    ctx.font = "bold 22px Arial";
-                    ctx.textAlign = "center";
+                    ctx.fillStyle = "#ffffff"; ctx.fillRect(0, 0, canvas.width, canvas.height);
+                    ctx.fillStyle = "#3b82f6"; ctx.font = "bold 22px Arial"; ctx.textAlign = "center";
                     ctx.fillText("RECIBO DE VENTA", canvas.width / 2, 40);
-
-                    ctx.fillStyle = "#64748b";
-                    ctx.font = "10px Arial";
-                    ctx.fillText(new Date(sale.fecha).toLocaleString(), canvas.width / 2, 60);
-
-                    ctx.textAlign = "left";
-                    ctx.fillStyle = "#94a3b8";
-                    ctx.font = "bold 10px Arial";
-                    ctx.fillText("CLIENTE:", 40, 100);
-
-                    ctx.fillStyle = "#1e293b";
-                    ctx.font = "bold 18px Arial";
+                    ctx.fillStyle = "#64748b"; ctx.font = "10px Arial"; ctx.fillText(new Date(sale.fecha).toLocaleString(), canvas.width / 2, 60);
+                    ctx.textAlign = "left"; ctx.fillStyle = "#94a3b8"; ctx.font = "bold 10px Arial";
+                    ctx.fillText("CLIENTE:", 40, 100); ctx.fillStyle = "#1e293b"; ctx.font = "bold 18px Arial";
                     ctx.fillText(sale.cliente.toUpperCase(), 40, 125);
-
-                    let y = 165;
-                    ctx.fillStyle = "#94a3b8";
-                    ctx.font = "bold 10px Arial";
-                    ctx.fillText("DETALLE DE PRODUCTOS:", 40, y);
-                    y += 20;
-
-                    ctx.font = "13px Arial";
-                    ctx.fillStyle = "#1e293b";
+                    let y = 165; ctx.fillStyle = "#94a3b8"; ctx.font = "bold 10px Arial";
+                    ctx.fillText("DETALLE DE PRODUCTOS:", 40, y); y += 20;
+                    ctx.font = "13px Arial"; ctx.fillStyle = "#1e293b";
                     sale.items.forEach(item => {
                         ctx.fillText(`${item.cantidad}x ${item.productoNombre}`, 40, y);
-                        ctx.textAlign = "right";
-                        ctx.font = "bold 13px Arial";
+                        ctx.textAlign = "right"; ctx.font = "bold 13px Arial";
                         ctx.fillText(`$${(item.precio * item.cantidad).toLocaleString()}`, canvas.width - 40, y);
-                        ctx.textAlign = "left";
-                        ctx.font = "13px Arial";
-                        y += 25;
+                        ctx.textAlign = "left"; ctx.font = "13px Arial"; y += 25;
                     });
-
-                    y += 20;
-                    ctx.strokeStyle = "#e5e7eb";
-                    ctx.beginPath();
-                    ctx.moveTo(40, y);
-                    ctx.lineTo(canvas.width - 40, y);
-                    ctx.stroke();
-
-                    y += 30;
-                    ctx.font = "14px Arial";
-                    ctx.fillStyle = "#64748b";
-                    ctx.fillText("TOTAL:", 40, y);
-                    ctx.font = "bold 22px Arial";
-                    ctx.fillStyle = "#1e293b";
-                    ctx.textAlign = "right";
+                    y += 20; ctx.strokeStyle = "#e5e7eb"; ctx.beginPath(); ctx.moveTo(40, y); ctx.lineTo(canvas.width - 40, y); ctx.stroke();
+                    y += 30; ctx.font = "14px Arial"; ctx.fillStyle = "#64748b"; ctx.fillText("TOTAL:", 40, y);
+                    ctx.font = "bold 22px Arial"; ctx.fillStyle = "#1e293b"; ctx.textAlign = "right";
                     ctx.fillText(`$${sale.total.toLocaleString()}`, canvas.width - 40, y);
-
-                    y += 30;
-                    ctx.font = "14px Arial";
-                    ctx.fillStyle = "#10b981";
-                    ctx.textAlign = "left";
-                    ctx.fillText("ABONADO:", 40, y);
-                    ctx.textAlign = "right";
-                    ctx.font = "bold 14px Arial";
+                    y += 30; ctx.font = "14px Arial"; ctx.fillStyle = "#10b981"; ctx.textAlign = "left";
+                    ctx.fillText("ABONADO:", 40, y); ctx.textAlign = "right"; ctx.font = "bold 14px Arial";
                     ctx.fillText(`$${sale.abono.toLocaleString()}`, canvas.width - 40, y);
-
-                    y += 25;
-                    ctx.fillStyle = "#ef4444";
-                    ctx.textAlign = "left";
-                    ctx.font = "bold 14px Arial";
-                    ctx.fillText("PENDIENTE:", 40, y);
-                    ctx.textAlign = "right";
-                    ctx.font = "bold 18px Arial";
+                    y += 25; ctx.fillStyle = "#ef4444"; ctx.textAlign = "left"; ctx.font = "bold 14px Arial";
+                    ctx.fillText("PENDIENTE:", 40, y); ctx.textAlign = "right"; ctx.font = "bold 18px Arial";
                     ctx.fillText(`$${(sale.total - sale.abono).toLocaleString()}`, canvas.width - 40, y);
 
                     const link = document.createElement("a");
@@ -397,93 +361,41 @@ return () => { unsubS(); unsubP(); unsubV(); unsubA(); };
                         {erpTab === 'venta' && (
                             <div className="grid md:grid-cols-2 gap-8">
                                 <div className="space-y-6">
-                                    <input
-                                        value={cliente}
-                                        onChange={e => setCliente(e.target.value)}
-                                        placeholder="Nombre del cliente"
-                                        className="input-elegant"
-                                    />
+                                    <input value={cliente} onChange={e => setCliente(e.target.value)} placeholder="Nombre del cliente" className="input-elegant" />
                                     <div className="bg-white/5 p-6 rounded-2xl">
-                                        <input
-                                            value={itemSearch}
-                                            onChange={e => {
-                                                setItemSearch(e.target.value);
-                                                setIsDropdownOpen(true);
-                                            }}
-                                            placeholder="Buscar producto..."
-                                            className="input-elegant mb-4"
-                                        />
+                                        <input value={itemSearch} onChange={e => {setItemSearch(e.target.value); setIsDropdownOpen(true);}} placeholder="Buscar producto..." className="input-elegant mb-4" />
                                         {isDropdownOpen && itemSearch && (
                                             <div className="bg-[#0f172a] border border-white/10 rounded-2xl max-h-48 overflow-auto">
-                                                {data.products
-                                                    .filter(p => p.name.toLowerCase().includes(itemSearch.toLowerCase()))
-                                                    .map(p => (
-                                                        <div
-                                                            key={p.id}
-                                                            className="p-4 hover:bg-blue-600 cursor-pointer"
-                                                            onClick={() => {
-                                                                setSelectedProd(p);
-                                                                setItemSearch(p.name);
-                                                                setItemPrice(p.price);
-                                                                setIsDropdownOpen(false);
-                                                            }}
-                                                        >
-                                                            {p.name} - ${p.price}
-                                                        </div>
-                                                    ))}
+                                                {data.products.filter(p => p.name.toLowerCase().includes(itemSearch.toLowerCase())).map(p => (
+                                                    <div key={p.id} className="p-4 hover:bg-blue-600 cursor-pointer" onClick={() => {setSelectedProd(p); setItemSearch(p.name); setItemPrice(p.price); setIsDropdownOpen(false);}}>
+                                                        {p.name} - ${p.price}
+                                                    </div>
+                                                ))}
                                             </div>
                                         )}
                                         <div className="grid grid-cols-2 gap-4">
-                                            <input
-                                                type="number"
-                                                value={itemPrice}
-                                                onChange={e => setItemPrice(e.target.value)}
-                                                placeholder="Precio"
-                                                className="input-elegant"
-                                            />
-                                            <input
-                                                type="number"
-                                                value={itemQty}
-                                                onChange={e => setItemQty(e.target.value)}
-                                                placeholder="Cantidad"
-                                                className="input-elegant"
-                                            />
+                                            <input type="number" value={itemPrice} onChange={e => setItemPrice(e.target.value)} placeholder="Precio" className="input-elegant" />
+                                            <input type="number" value={itemQty} onChange={e => setItemQty(e.target.value)} placeholder="Cantidad" className="input-elegant" />
                                         </div>
-                                        <button onClick={addToCartERP} className="w-full mt-6 bg-blue-600 py-4 rounded-2xl font-black">
-                                            + Añadir al Carrito
-                                        </button>
+                                        <button onClick={addToCartERP} className="w-full mt-6 bg-blue-600 py-4 rounded-2xl font-black">+ Añadir al Carrito</button>
                                     </div>
                                 </div>
 
                                 <div className="bg-white/5 p-6 rounded-2xl flex flex-col">
                                     <h3 className="font-black text-xl mb-6">Resumen Factura</h3>
                                     <div className="flex-1 overflow-y-auto space-y-4">
-                                        {cartERP.length === 0 ? (
-                                            <p className="text-center text-slate-400 py-10">Carrito vacío</p>
-                                        ) : (
-                                            cartERP.map(item => (
-                                                <div key={item.tempId} className="flex justify-between bg-white/10 p-4 rounded-2xl">
-                                                    <div>{item.productoNombre} × {item.cantidad}</div>
-                                                    <div className="font-black">${(item.precio * item.cantidad).toLocaleString()}</div>
-                                                </div>
-                                            ))
-                                        )}
+                                        {cartERP.length === 0 ? <p className="text-center text-slate-400 py-10">Carrito vacío</p> :
+                                        cartERP.map(item => (
+                                            <div key={item.tempId} className="flex justify-between bg-white/10 p-4 rounded-2xl">
+                                                <div>{item.productoNombre} × {item.cantidad}</div>
+                                                <div className="font-black">${(item.precio * item.cantidad).toLocaleString()}</div>
+                                            </div>
+                                        ))}
                                     </div>
                                     <div className="pt-6 border-t border-white/10">
-                                        <div className="flex justify-between text-2xl font-black mb-4">
-                                            <span>Total</span>
-                                            <span>${cartTotalERP.toLocaleString()}</span>
-                                        </div>
-                                        <input
-                                            type="number"
-                                            value={abono}
-                                            onChange={e => setAbono(e.target.value)}
-                                            placeholder="Abono / Pago adelantado"
-                                            className="input-elegant mb-4"
-                                        />
-                                        <button onClick={processSale} className="w-full bg-emerald-600 py-5 rounded-2xl font-black text-lg">
-                                            Procesar Factura
-                                        </button>
+                                        <div className="flex justify-between text-2xl font-black mb-4"><span>Total</span><span>${cartTotalERP.toLocaleString()}</span></div>
+                                        <input type="number" value={abono} onChange={e => setAbono(e.target.value)} placeholder="Abono inicial" className="input-elegant mb-4" />
+                                        <button onClick={processSale} className="w-full bg-emerald-600 py-5 rounded-2xl font-black text-lg">Procesar Factura</button>
                                     </div>
                                 </div>
                             </div>
@@ -497,17 +409,10 @@ return () => { unsubS(); unsubP(); unsubV(); unsubA(); };
                                         <div className="text-3xl font-black text-blue-400 mt-2">${p.price}</div>
                                         <div className="mt-4 flex justify-between items-center">
                                             <span>Stock: <span className="font-black">{p.stock || 0}</span></span>
-                                            <button
-                                                onClick={() => {
-                                                    const nuevo = prompt(`Nuevo stock para ${p.name}:`, p.stock || 0);
-                                                    if (nuevo !== null) {
-                                                        window.storeApi.updateProductStock(p.id, parseFloat(nuevo));
-                                                    }
-                                                }}
-                                                className="bg-blue-600 px-5 py-2 rounded-xl text-xs font-black"
-                                            >
-                                                Editar Stock
-                                            </button>
+                                            <button onClick={() => {
+                                                const n = prompt(`Nuevo stock para ${p.name}:`, p.stock || 0);
+                                                if (n !== null) window.storeApi.updateProductStock(p.id, parseFloat(n));
+                                            }} className="bg-blue-600 px-5 py-2 rounded-xl text-xs font-black">Editar Stock</button>
                                         </div>
                                     </div>
                                 ))}
@@ -517,18 +422,10 @@ return () => { unsubS(); unsubP(); unsubV(); unsubA(); };
                         {erpTab === 'historial' && (
                             <div className="overflow-x-auto">
                                 <table className="w-full text-left">
-                                    <thead>
-                                        <tr className="text-xs uppercase border-b border-white/10">
-                                            <th className="py-4">Fecha</th>
-                                            <th className="py-4">Cliente</th>
-                                            <th className="py-4">Total</th>
-                                            <th className="py-4">Estado</th>
-                                            <th className="py-4 text-center">Acción</th>
-                                        </tr>
-                                    </thead>
+                                    <thead><tr className="text-xs uppercase border-b border-white/10"><th>Fecha</th><th>Cliente</th><th>Total</th><th>Estado</th><th>Acción</th></tr></thead>
                                     <tbody>
                                         {data.ventas.map(v => (
-                                            <tr key={v.id} className="border-b border-white/5 hover:bg-white/5">
+                                            <tr key={v.id} className="border-b hover:bg-white/5">
                                                 <td className="py-4">{new Date(v.fecha).toLocaleDateString()}</td>
                                                 <td className="py-4 font-black">{v.cliente}</td>
                                                 <td className="py-4">${v.total}</td>
@@ -555,199 +452,156 @@ return () => { unsubS(); unsubP(); unsubV(); unsubA(); };
                         )}
 
                         {erpTab === 'deudas' && (
-    <div className="space-y-8">
-        <div className="flex items-center justify-between">
-            <h3 className="text-2xl md:text-3xl font-black uppercase text-red-400">Cuentas por Cobrar</h3>
-            <span className="text-sm bg-red-500/20 text-red-300 px-4 py-2 rounded-full font-medium">
-                {data.abonos.length} abonos registrados
-            </span>
-        </div>
-
-        {(() => {
-            // 1. Calcular deuda por cliente usando ventas + abonos
-            const deudas = data.ventas
-                .filter(v => v.estado !== 'anulada')
-                .reduce((acc, venta) => {
-                    const clave = venta.cliente.trim();
-                    if (!acc[clave]) {
-                        acc[clave] = {
-                            cliente: clave,
-                            totalInicial: 0,
-                            totalAbonadoVentas: 0,
-                            abonosExtra: 0,
-                            pendiente: 0,
-                            ventas: []
-                        };
-                    }
-
-                    const inicial = Number(venta.total || 0);
-                    const abonadoEnVenta = Number(venta.abono || 0);
-
-                    acc[clave].totalInicial += inicial;
-                    acc[clave].totalAbonadoVentas += abonadoEnVenta;
-                    acc[clave].ventas.push(venta);
-
-                    return acc;
-                }, {});
-
-            // 2. Sumar abonos extras (los que no están en venta.abono)
-            data.abonos.forEach(abono => {
-                const clave = abono.cliente?.trim();
-                if (clave && deudas[clave]) {
-                    deudas[clave].abonosExtra += Number(abono.monto || 0);
-                }
-            });
-
-            // 3. Calcular pendiente final y preparar lista
-            const clientesConDeuda = Object.values(deudas).map(c => {
-                const totalAbonado = c.totalAbonadoVentas + c.abonosExtra;
-                return {
-                    ...c,
-                    totalAbonado,
-                    pendiente: Math.max(0, c.totalInicial - totalAbonado)
-                };
-            }).filter(c => c.pendiente > 0);
-
-            if (clientesConDeuda.length === 0) {
-                return (
-                    <div className="text-center py-20 bg-white/5 rounded-3xl border border-white/10">
-                        <p className="text-xl text-slate-300 italic">No hay deudas pendientes en este momento</p>
-                        <p className="text-sm text-slate-500 mt-2">Todas las facturas están saldadas</p>
-                    </div>
-                );
-            }
-
-            return clientesConDeuda.map(cliente => (
-                <div
-                    key={cliente.cliente}
-                    className="premium-glass p-6 md:p-8 rounded-3xl transition hover:shadow-2xl hover:shadow-red-900/20"
-                >
-                    <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-6 mb-6">
-                        <div>
-                            <p className="text-xs md:text-sm text-slate-400 uppercase font-black tracking-wider mb-1">Deudor</p>
-                            <h4 className="text-2xl md:text-3xl font-black uppercase">{cliente.cliente}</h4>
-                        </div>
-
-                        <div className="text-right">
-                            <p className="text-xs md:text-sm text-slate-400">Saldo pendiente</p>
-                            <p className="text-3xl md:text-4xl font-black text-red-400">
-                                ${cliente.pendiente.toLocaleString()}
-                            </p>
-                        </div>
-                    </div>
-
-                    <div className="grid grid-cols-1 sm:grid-cols-3 gap-6 mb-8">
-                        <div className="bg-white/5 p-5 rounded-2xl text-center border border-white/10">
-                            <p className="text-xs md:text-sm text-slate-400">Total facturado</p>
-                            <p className="text-xl md:text-2xl font-black">${cliente.totalInicial.toLocaleString()}</p>
-                        </div>
-                        <div className="bg-white/5 p-5 rounded-2xl text-center border border-white/10">
-                            <p className="text-xs md:text-sm text-emerald-400">Total abonado</p>
-                            <p className="text-xl md:text-2xl font-black text-emerald-400">
-                                ${cliente.totalAbonado.toLocaleString()}
-                            </p>
-                        </div>
-                        <div className="bg-white/5 p-5 rounded-2xl text-center border border-white/10">
-                            <p className="text-xs md:text-sm text-red-400">Por pagar</p>
-                            <p className="text-xl md:text-2xl font-black text-red-400">
-                                ${cliente.pendiente.toLocaleString()}
-                            </p>
-                        </div>
-                    </div>
-
-                    {/* Botón para registrar abono */}
-                    <div className="flex flex-col sm:flex-row gap-4">
-                        <button
-                            onClick={async () => {
-                                const montoStr = prompt(
-                                    `¿Cuánto abona ${cliente.cliente} ahora?\nPendiente actual: $${cliente.pendiente.toLocaleString()}`,
-                                    ""
-                                );
-
-                                const monto = parseFloat(montoStr?.replace(',', ''));
-
-                                if (isNaN(monto) || monto <= 0) {
-                                    if (montoStr) alert("Por favor ingresa un monto válido.");
-                                    return;
-                                }
-
-                                if (monto > cliente.pendiente) {
-                                    alert("El abono no puede ser mayor al saldo pendiente.");
-                                    return;
-                                }
-
-                                if (!confirm(`¿Confirmas abono de $${monto.toLocaleString()} para ${cliente.cliente}?`)) return;
-
-                                try {
-                                    // Registramos el abono en la tabla abonos
-                                    await window.storeApi.registrarAbono({
-                                        cliente: cliente.cliente,
-                                        monto,
-                                        fecha: new Date().toISOString()
-                                        // Si quieres asociarlo a una venta específica:
-                                        // venta_id: cliente.ventas[0]?.id || null
-                                    });
-
-                                    alert(`¡Abono de $${monto.toLocaleString()} registrado correctamente!`);
-
-                                    // Opcional: actualizar abono en la venta más antigua con deuda
-                                    const ventaConDeuda = cliente.ventas.find(v => (v.total - (v.abono || 0)) > 0);
-                                    if (ventaConDeuda) {
-                                        const nuevoAbono = (ventaConDeuda.abono || 0) + monto;
-                                        await window.storeApi.updateProduct(ventaConDeuda.id, { abono: nuevoAbono });
-                                    }
-                                } catch (err) {
-                                    console.error(err);
-                                    alert("Error al registrar el abono. Revisa la consola.");
-                                }
-                            }}
-                            className="flex-1 bg-gradient-to-r from-blue-600 to-blue-700 hover:from-blue-700 hover:to-blue-800 px-6 py-4 rounded-2xl font-black text-white text-lg shadow-lg shadow-blue-900/30 transition"
-                        >
-                            Registrar Nuevo Abono
-                        </button>
-
-                        {/* Botón opcional para ver detalle */}
-                        {cliente.ventas.length > 0 && (
-                            <button
-                                onClick={() => alert("Detalle de facturas con deuda:\n" + JSON.stringify(cliente.ventas.map(v => ({
-                                    fecha: v.fecha,
-                                    total: v.total,
-                                    abono: v.abono,
-                                    pendiente: v.total - v.abono
-                                })), null, 2))}
-                                className="flex-1 bg-white/10 hover:bg-white/20 px-6 py-4 rounded-2xl font-black text-white transition"
-                            >
-                                Ver detalle de facturas
-                            </button>
-                        )}
-                    </div>
-                </div>
-            ));
-        })()}
-    </div>
-)}
-                        
-
-                        {showInvoice && lastSale && (
-                            <div className="fixed inset-0 bg-black/80 backdrop-blur-md flex items-center justify-center z-[200]">
-                                <div className="premium-glass p-10 rounded-3xl text-center max-w-md">
-                                    <h2 className="text-3xl font-black mb-4 text-emerald-400">Factura Generada Correctamente</h2>
-                                    <p className="text-slate-300 mb-8">Cliente: <strong>{lastSale.cliente}</strong><br/>Total: <strong>${lastSale.total}</strong></p>
-                                    <div className="flex flex-col gap-4">
-                                        <button
-                                            onClick={() => downloadInvoice(lastSale)}
-                                            className="bg-blue-600 py-5 rounded-2xl font-black text-lg hover:bg-blue-700 transition"
-                                        >
-                                            Descargar Factura PNG
-                                        </button>
-                                        <button
-                                            onClick={() => setShowInvoice(false)}
-                                            className="text-slate-400 hover:text-white transition"
-                                        >
-                                            Cerrar
-                                        </button>
+                            <div className="space-y-8">
+                                <div className="flex items-center justify-between flex-wrap gap-4">
+                                    <h3 className="text-2xl md:text-3xl font-black uppercase text-red-400">Cuentas por Cobrar</h3>
+                                    <div className="text-sm bg-red-500/20 text-red-300 px-4 py-2 rounded-full font-medium">
+                                        {data.abonos?.length || 0} abonos registrados
                                     </div>
                                 </div>
+
+                                {(() => {
+                                    const ventas = Array.isArray(data.ventas) ? data.ventas : [];
+                                    const abonos = Array.isArray(data.abonos) ? data.abonos : [];
+
+                                    const deudasPorCliente = ventas
+                                        .filter(v => v && v.estado !== 'anulada' && v.cliente)
+                                        .reduce((acc, venta) => {
+                                            const clave = (venta.cliente || 'Sin cliente').trim();
+                                            if (!acc[clave]) {
+                                                acc[clave] = {
+                                                    cliente: venta.cliente || 'Sin nombre',
+                                                    totalInicial: 0,
+                                                    abonadoEnVentas: 0,
+                                                    abonosExtra: 0,
+                                                    pendiente: 0,
+                                                    ventas: []
+                                                };
+                                            }
+
+                                            const inicial = Number(venta.total || 0);
+                                            const abonadoVenta = Number(venta.abono || 0);
+
+                                            acc[clave].totalInicial += inicial;
+                                            acc[clave].abonadoEnVentas += abonadoVenta;
+                                            acc[clave].ventas.push(venta);
+
+                                            return acc;
+                                        }, {});
+
+                                    abonos.forEach(abono => {
+                                        if (abono && abono.cliente) {
+                                            const clave = abono.cliente.trim();
+                                            if (deudasPorCliente[clave]) {
+                                                deudasPorCliente[clave].abonosExtra += Number(abono.monto || 0);
+                                            }
+                                        }
+                                    });
+
+                                    const clientesConDeuda = Object.values(deudasPorCliente)
+                                        .map(c => ({
+                                            ...c,
+                                            totalAbonado: c.abonadoEnVentas + c.abonosExtra,
+                                            pendiente: Math.max(0, c.totalInicial - (c.abonadoEnVentas + c.abonosExtra))
+                                        }))
+                                        .filter(c => c.pendiente > 0.01)
+                                        .sort((a, b) => b.pendiente - a.pendiente);
+
+                                    if (clientesConDeuda.length === 0) {
+                                        return (
+                                            <div className="text-center py-20 bg-white/5 rounded-3xl border border-white/10">
+                                                <i className="fas fa-check-circle text-6xl text-emerald-500 mb-6 block"></i>
+                                                <p className="text-xl text-slate-300 font-medium">No hay deudas pendientes</p>
+                                                <p className="text-sm text-slate-500 mt-3">Todas las cuentas están al día</p>
+                                            </div>
+                                        );
+                                    }
+
+                                    return clientesConDeuda.map(cliente => (
+                                        <div
+                                            key={cliente.cliente}
+                                            className="premium-glass p-6 md:p-8 rounded-3xl transition-all duration-300 hover:shadow-2xl hover:shadow-red-900/20 border border-red-900/20"
+                                        >
+                                            <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-6 mb-8">
+                                                <div>
+                                                    <p className="text-xs md:text-sm text-slate-400 uppercase font-black tracking-wider mb-1">Cliente</p>
+                                                    <h4 className="text-2xl md:text-3xl font-black uppercase break-words">{cliente.cliente}</h4>
+                                                </div>
+
+                                                <div className="text-right min-w-[160px]">
+                                                    <p className="text-xs md:text-sm text-slate-400">Pendiente</p>
+                                                    <p className="text-3xl md:text-4xl font-black text-red-400">
+                                                        ${cliente.pendiente.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                                                    </p>
+                                                </div>
+                                            </div>
+
+                                            <div className="grid grid-cols-1 sm:grid-cols-3 gap-6 mb-8">
+                                                <div className="bg-white/5 p-5 rounded-2xl text-center border border-white/10">
+                                                    <p className="text-xs md:text-sm text-slate-400">Facturado</p>
+                                                    <p className="text-xl md:text-2xl font-black">${cliente.totalInicial.toLocaleString()}</p>
+                                                </div>
+                                                <div className="bg-white/5 p-5 rounded-2xl text-center border border-white/10">
+                                                    <p className="text-xs md:text-sm text-emerald-400">Abonado</p>
+                                                    <p className="text-xl md:text-2xl font-black text-emerald-400">
+                                                        ${cliente.totalAbonado.toLocaleString(undefined, { minimumFractionDigits: 2 })}
+                                                    </p>
+                                                </div>
+                                                <div className="bg-white/5 p-5 rounded-2xl text-center border border-white/10">
+                                                    <p className="text-xs md:text-sm text-red-400">Restante</p>
+                                                    <p className="text-xl md:text-2xl font-black text-red-400">
+                                                        ${cliente.pendiente.toLocaleString(undefined, { minimumFractionDigits: 2 })}
+                                                    </p>
+                                                </div>
+                                            </div>
+
+                                            <div className="flex flex-col sm:flex-row gap-4">
+                                                <button
+                                                    onClick={async () => {
+                                                        const montoStr = prompt(
+                                                            `¿Cuánto abona ${cliente.cliente} ahora?\nPendiente actual: $${cliente.pendiente.toLocaleString(undefined, { minimumFractionDigits: 2 })}`,
+                                                            ""
+                                                        );
+
+                                                        const monto = parseFloat(montoStr?.replace(/[^0-9.]/g, ''));
+
+                                                        if (isNaN(monto) || monto <= 0) {
+                                                            if (montoStr) alert("Ingresa un monto válido mayor a 0.");
+                                                            return;
+                                                        }
+
+                                                        if (monto > cliente.pendiente + 0.01) {
+                                                            alert("El abono no puede superar el saldo pendiente.");
+                                                            return;
+                                                        }
+
+                                                        if (!confirm(`¿Confirmas registrar abono de $${monto.toLocaleString()} para ${cliente.cliente}?`)) return;
+
+                                                        try {
+                                                            await window.storeApi.registrarAbono({
+                                                                cliente: cliente.cliente,
+                                                                monto,
+                                                                fecha: new Date().toISOString(),
+                                                                venta_id: cliente.ventas
+                                                                    .filter(v => (Number(v.total || 0) - Number(v.abono || 0)) > 0.01)
+                                                                    .sort((a,b) => new Date(a.fecha) - new Date(b.fecha))[0]?.id || null
+                                                            });
+
+                                                            alert(`¡Abono de $${monto.toLocaleString()} registrado con éxito!`);
+                                                        } catch (err) {
+                                                            console.error("Error al registrar abono:", err);
+                                                            alert("No se pudo registrar el abono. Revisa la consola.");
+                                                        }
+                                                    }}
+                                                    className="flex-1 bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700 px-6 py-4 rounded-2xl font-black text-white text-lg shadow-lg shadow-blue-900/30 transition-all duration-300"
+                                                >
+                                                    <i className="fas fa-hand-holding-usd mr-2"></i>
+                                                    Registrar Nuevo Abono
+                                                </button>
+                                            </div>
+                                        </div>
+                                    ));
+                                })()}
                             </div>
                         )}
                     </div>
@@ -757,12 +611,10 @@ return () => { unsubS(); unsubP(); unsubV(); unsubA(); };
             return (
                 <div className="min-h-screen pb-20 relative">
                     <div className="fixed inset-0 bg-black/50 pointer-events-none -z-10"></div>
-
+                    
                     <nav className="fixed top-0 w-full z-50 premium-glass px-6 py-4 flex justify-between items-center">
                         <div className="flex items-center gap-3 cursor-pointer" onClick={() => setView('store')}>
-                            <div className="w-9 h-9 bg-blue-600 rounded-xl flex items-center justify-center shadow-lg shadow-blue-600/30">
-                                <i className="fas fa-bolt"></i>
-                            </div>
+                            <div className="w-9 h-9 bg-blue-600 rounded-xl flex items-center justify-center shadow-lg shadow-blue-600/30"><i className="fas fa-bolt"></i></div>
                             <span className="text-lg font-black uppercase tracking-tighter italic">{data.settings.logo}</span>
                         </div>
                         <div className="flex items-center gap-3">
@@ -770,12 +622,7 @@ return () => { unsubS(); unsubP(); unsubV(); unsubA(); };
                                 <i className="fas fa-shopping-bag text-sm"></i>
                                 {cart.length > 0 && <span className="cart-badge">{cart.length}</span>}
                             </button>
-                            <button
-                                onClick={() => setView(view === 'admin' ? 'store' : 'admin')}
-                                className="bg-white/5 px-4 py-2.5 rounded-2xl text-[10px] font-black uppercase border border-white/5"
-                            >
-                                {view === 'admin' ? 'Tienda' : 'Admin'}
-                            </button>
+                            <button onClick={() => setView(view === 'admin' ? 'store' : 'admin')} className="bg-white/5 px-4 py-2.5 rounded-2xl text-[10px] font-black uppercase border border-white/5">{view === 'admin' ? 'Tienda' : 'Admin'}</button>
                         </div>
                     </nav>
 
@@ -783,21 +630,13 @@ return () => { unsubS(); unsubP(); unsubV(); unsubA(); };
                         <div className="fade-in pt-16">
                             <header className="relative h-[45vh] flex items-center justify-center overflow-hidden">
                                 {data.settings.hero_banner && (
-                                    <img
-                                        src={data.settings.hero_banner}
-                                        className="absolute inset-0 w-full h-full object-cover"
-                                        style={{ opacity: data.settings.hero_opacity ?? 0.4 }}
-                                    />
+                                    <img src={data.settings.hero_banner} className="absolute inset-0 w-full h-full object-cover" style={{ opacity: data.settings.hero_opacity ?? 0.4 }} />
                                 )}
                                 <div className="absolute inset-0 bg-gradient-to-t from-[#020617] via-transparent to-transparent"></div>
                                 <div className="relative text-center px-4">
-                                    <h1 className="text-6xl md:text-8xl font-black italic uppercase tracking-tighter mb-4">
-                                        {data.settings.logo}
-                                    </h1>
+                                    <h1 className="text-6xl md:text-8xl font-black italic uppercase tracking-tighter mb-4">{data.settings.logo}</h1>
                                     <div className="inline-flex items-center gap-3 bg-blue-600/20 border border-blue-500/30 px-6 py-2 rounded-2xl backdrop-blur-md">
-                                        <p className="text-[10px] font-black uppercase tracking-widest text-blue-100">
-                                            Dólar BCV: <span className="text-white ml-1">Bs. {data.rate.toFixed(2)}</span>
-                                        </p>
+                                        <p className="text-[10px] font-black uppercase tracking-widest text-blue-100">Dólar BCV: <span className="text-white ml-1">Bs. {data.rate.toFixed(2)}</span></p>
                                     </div>
                                 </div>
                             </header>
@@ -813,11 +652,7 @@ return () => { unsubS(); unsubP(); unsubV(); unsubA(); };
                                         </div>
                                     </div>
                                     <div className="relative">
-                                        {data.settings.promo_banner ? (
-                                            <img src={data.settings.promo_banner} className="rounded-[2rem] shadow-2xl border border-white/10" />
-                                        ) : (
-                                            <div className="h-72 flex items-center justify-center rounded-[2rem] bg-gradient-to-br from-blue-600 to-purple-600 text-white font-black text-2xl uppercase italic">Promo</div>
-                                        )}
+                                        {data.settings.promo_banner ? (<img src={data.settings.promo_banner} className="rounded-[2rem] shadow-2xl border border-white/10" />) : (<div className="h-72 flex items-center justify-center rounded-[2rem] bg-gradient-to-br from-blue-600 to-purple-600 text-white font-black text-2xl uppercase italic">Promo</div>)}
                                     </div>
                                 </div>
                             </section>
@@ -828,35 +663,19 @@ return () => { unsubS(); unsubP(); unsubV(); unsubA(); };
                                     <div key={p.id} className="product-card premium-glass rounded-[1.8rem] overflow-hidden flex flex-col group">
                                         <div className="aspect-[4/5] relative overflow-hidden bg-slate-900">
                                             {p.img && <img src={p.img} className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-700" />}
-                                            <div className="absolute top-4 left-4 bg-black/60 backdrop-blur-md px-3 py-1 rounded-xl text-[8px] font-black uppercase border border-white/10">
-                                                {p.status === 'stock' ? 'Disponible' : 'Bajo pedido'}
-                                            </div>
-                                            {p.price > 20 && (
-                                                <div className="absolute bottom-4 left-4 right-4 badge-finance py-2 px-3 rounded-2xl text-center">
-                                                    <p className="text-[9px] font-black uppercase tracking-tighter text-white">2 o 3 Cuotas ✨</p>
-                                                </div>
-                                            )}
+                                            <div className="absolute top-4 left-4 bg-black/60 backdrop-blur-md px-3 py-1 rounded-xl text-[8px] font-black uppercase border border-white/10">{p.status === 'stock' ? 'Disponible' : 'Bajo pedido'}</div>
+                                            {p.price > 20 && <div className="absolute bottom-4 left-4 right-4 badge-finance py-2 px-3 rounded-2xl text-center"><p className="text-[9px] font-black uppercase tracking-tighter text-white">2 o 3 Cuotas ✨</p></div>}
                                         </div>
                                         <div className="p-5 flex flex-col flex-1">
                                             <h3 className="text-[11px] font-bold uppercase mb-4 h-9 text-slate-100">{p.name}</h3>
                                             <div className="mt-auto">
                                                 <div className="mb-5">
                                                     <p className="text-2xl font-black italic text-white">${p.price}</p>
-                                                    <p className="text-[9px] text-slate-400 font-bold uppercase tracking-tight">
-                                                        Bs. {(p.price * data.rate).toLocaleString('es-VE')}
-                                                    </p>
+                                                    <p className="text-[9px] text-slate-400 font-bold uppercase tracking-tight">Bs. {(p.price * data.rate).toLocaleString('es-VE')}</p>
                                                 </div>
                                                 <div className="flex gap-2">
-                                                    <button onClick={() => addToCart(p)} className="flex-1 bg-white/5 border border-white/10 h-11 rounded-2xl flex items-center justify-center">
-                                                        <i className="fas fa-cart-plus text-xs"></i>
-                                                    </button>
-                                                    <button
-                                                        onClick={() => window.open(`https://wa.me/${data.settings.whatsapp}?text=Hola! Quiero: ${p.name}`)}
-                                                        className="flex-1 bg-blue-600 h-11 rounded-2xl flex items-center justify-center gap-2"
-                                                    >
-                                                        <i className="fab fa-whatsapp text-sm"></i>
-                                                        <span className="text-[9px] font-black uppercase">Pedir</span>
-                                                    </button>
+                                                    <button onClick={() => addToCart(p)} className="flex-1 bg-white/5 border border-white/10 h-11 rounded-2xl flex items-center justify-center"><i className="fas fa-cart-plus text-xs"></i></button>
+                                                    <button onClick={() => window.open(`https://wa.me/${data.settings.whatsapp}?text=Hola! Quiero: ${p.name}`)} className="flex-1 bg-blue-600 h-11 rounded-2xl flex items-center justify-center gap-2"><i className="fab fa-whatsapp text-sm"></i><span className="text-[9px] font-black uppercase">Pedir</span></button>
                                                 </div>
                                             </div>
                                         </div>
@@ -869,39 +688,16 @@ return () => { unsubS(); unsubP(); unsubV(); unsubA(); };
                             {!isAdmin ? (
                                 <div className="flex items-center justify-center h-[50vh]">
                                     <div className="premium-glass p-10 rounded-[3rem] w-full max-w-xs text-center">
-                                        <input
-                                            type="password"
-                                            placeholder="Clave"
-                                            className="input-elegant text-center mb-6"
-                                            onKeyDown={e => e.key === 'Enter' && e.target.value === 'tavo2026' && setIsAdmin(true)}
-                                        />
-                                        <button
-                                            onClick={e => {
-                                                if (e.target.previousSibling.value === 'tavo2026') setIsAdmin(true);
-                                                else alert('Clave incorrecta');
-                                            }}
-                                            className="w-full bg-blue-600 py-4 rounded-2xl font-black uppercase text-[11px]"
-                                        >
-                                            Acceder
-                                        </button>
+                                        <input type="password" placeholder="Clave" className="input-elegant text-center mb-6" onKeyDown={e => e.key === 'Enter' && e.target.value === 'tavo2026' && setIsAdmin(true)} />
+                                        <button onClick={(e) => e.target.previousSibling.value === 'tavo2026' ? setIsAdmin(true) : alert('Clave incorrecta')} className="w-full bg-blue-600 py-4 rounded-2xl font-black uppercase text-[11px]">Acceder</button>
                                     </div>
                                 </div>
                             ) : (
                                 <div className="space-y-12">
                                     <h2 className="text-3xl font-black italic uppercase text-white">Panel Admin</h2>
                                     <div className="flex gap-4 mb-8">
-                                        <button
-                                            onClick={() => setAdminTab('config')}
-                                            className={`px-8 py-4 rounded-2xl font-black ${adminTab === 'config' ? 'bg-blue-600' : 'bg-white/5'}`}
-                                        >
-                                            Configuración
-                                        </button>
-                                        <button
-                                            onClick={() => setAdminTab('erp')}
-                                            className={`px-8 py-4 rounded-2xl font-black ${adminTab === 'erp' ? 'bg-blue-600' : 'bg-white/5'}`}
-                                        >
-                                            ERP Facturación
-                                        </button>
+                                        <button onClick={() => setAdminTab('config')} className={`px-8 py-4 rounded-2xl font-black ${adminTab === 'config' ? 'bg-blue-600' : 'bg-white/5'}`}>Configuración</button>
+                                        <button onClick={() => setAdminTab('erp')} className={`px-8 py-4 rounded-2xl font-black ${adminTab === 'erp' ? 'bg-blue-600' : 'bg-white/5'}`}>ERP Facturación</button>
                                     </div>
 
                                     {adminTab === 'config' && (
@@ -911,137 +707,64 @@ return () => { unsubS(); unsubP(); unsubV(); unsubA(); };
                                                     <div>
                                                         <label className="text-[9px] font-black text-slate-500 uppercase block mb-3">Tasa USD</label>
                                                         <div className="flex gap-2">
-                                                            <input
-                                                                type="number"
-                                                                step="0.01"
-                                                                className="input-elegant font-black text-2xl"
-                                                                value={data.rate}
-                                                                onChange={e => setData({ ...data, rate: parseFloat(e.target.value) })}
-                                                            />
-                                                            <button
-                                                                onClick={() => window.storeApi.updateConfig({ rate: data.rate })}
-                                                                className="bg-blue-600 px-4 rounded-2xl text-[10px] font-black uppercase"
-                                                            >
-                                                                Actualizar
-                                                            </button>
+                                                            <input type="number" step="0.01" className="input-elegant font-black text-2xl" value={data.rate} onChange={e => setData({...data, rate: parseFloat(e.target.value)})} />
+                                                            <button onClick={() => window.storeApi.updateConfig({ rate: data.rate })} className="bg-blue-600 px-4 rounded-2xl text-[10px] font-black uppercase">Actualizar</button>
                                                         </div>
                                                     </div>
                                                     <div>
                                                         <label className="text-[9px] font-black text-slate-500 uppercase block mb-3">Logo Texto</label>
-                                                        <input
-                                                            className="input-elegant font-bold uppercase"
-                                                            value={data.settings.logo}
-                                                            onChange={e => {
-                                                                const newSets = { ...data.settings, logo: e.target.value };
-                                                                setData({ ...data, settings: newSets });
-                                                                window.storeApi.updateConfig({ settings: newSets });
-                                                            }}
-                                                        />
+                                                        <input className="input-elegant font-bold uppercase" value={data.settings.logo} onChange={e => {
+                                                            const newSets = {...data.settings, logo: e.target.value};
+                                                            setData({...data, settings: newSets});
+                                                            window.storeApi.updateConfig({ settings: newSets });
+                                                        }} />
                                                     </div>
                                                 </div>
 
                                                 <div className="premium-glass p-8 rounded-[2rem] space-y-6">
-                                                    <div>
-                                                        <label className="text-[9px] font-black text-slate-500 uppercase block mb-3">Fondo Web</label>
-                                                        <div className="file-upload-btn" onClick={() => document.getElementById('bgInp').click()}>
-                                                            Subir Fondo
-                                                        </div>
-                                                        <input id="bgInp" type="file" className="hidden" onChange={e => handleStorageUpload(e, 'background')} />
-                                                    </div>
-                                                    <div>
-                                                        <label className="text-[9px] font-black text-slate-500 uppercase block mb-3">Banner Hero Principal</label>
-                                                        <div className="file-upload-btn" onClick={() => document.getElementById('heroInp').click()}>
-                                                            Subir Hero Principal
-                                                        </div>
-                                                        <input id="heroInp" type="file" className="hidden" onChange={e => handleStorageUpload(e, 'hero_banner')} />
-                                                    </div>
-                                                    <div>
-                                                        <label className="text-[9px] font-black text-slate-500 uppercase block mb-3">Banner Sección Ofertas</label>
-                                                        <div className="file-upload-btn" onClick={() => document.getElementById('promoInp').click()}>
-                                                            Subir Promo Banner
-                                                        </div>
-                                                        <input id="promoInp" type="file" className="hidden" onChange={e => handleStorageUpload(e, 'promo_banner')} />
-                                                    </div>
+                                                    <div><label className="text-[9px] font-black text-slate-500 uppercase block mb-3">Fondo Web</label><div className="file-upload-btn" onClick={() => document.getElementById('bgInp').click()}>Subir Fondo</div><input id="bgInp" type="file" className="hidden" onChange={e => handleStorageUpload(e, 'background')} /></div>
+                                                    <div><label className="text-[9px] font-black text-slate-500 uppercase block mb-3">Banner Hero Principal</label><div className="file-upload-btn" onClick={() => document.getElementById('heroInp').click()}>Subir Hero Principal</div><input id="heroInp" type="file" className="hidden" onChange={e => handleStorageUpload(e, 'hero_banner')} /></div>
+                                                    <div><label className="text-[9px] font-black text-slate-500 uppercase block mb-3">Banner Sección Ofertas</label><div className="file-upload-btn" onClick={() => document.getElementById('promoInp').click()}>Subir Promo Banner</div><input id="promoInp" type="file" className="hidden" onChange={e => handleStorageUpload(e, 'promo_banner')} /></div>
                                                     <div>
                                                         <label className="text-[9px] font-black text-slate-500 uppercase block mb-3">Opacidad Banner Hero Principal</label>
                                                         <div className="flex gap-3 items-center">
-                                                            <input
-                                                                type="range"
-                                                                min="0"
-                                                                max="1"
-                                                                step="0.05"
-                                                                value={data.settings.hero_opacity ?? 0.4}
-                                                                onChange={e => {
-                                                                    const val = parseFloat(e.target.value);
-                                                                    const newSettings = { ...data.settings, hero_opacity: val };
-                                                                    setData(prev => ({ ...prev, settings: newSettings }));
-                                                                    window.storeApi.updateConfig({ settings: newSettings });
-                                                                }}
-                                                                className="w-full h-2 bg-slate-700 rounded-lg appearance-none cursor-pointer accent-blue-600"
-                                                            />
-                                                            <span className="text-xs font-bold text-slate-300 w-14 text-right">
-                                                                {Math.round((data.settings.hero_opacity ?? 0.4) * 100)}%
-                                                            </span>
+                                                            <input type="range" min="0" max="1" step="0.05" value={data.settings.hero_opacity ?? 0.4} onChange={e => {
+                                                                const newOpacity = parseFloat(e.target.value);
+                                                                const newSettings = { ...data.settings, hero_opacity: newOpacity };
+                                                                setData(prev => ({ ...prev, settings: newSettings }));
+                                                                window.storeApi.updateConfig({ settings: newSettings });
+                                                            }} className="w-full h-2 bg-slate-700 rounded-lg appearance-none cursor-pointer accent-blue-600" />
+                                                            <span className="text-xs font-bold text-slate-300 w-14 text-right">{Math.round((data.settings.hero_opacity ?? 0.4) * 100)}%</span>
                                                         </div>
                                                     </div>
                                                 </div>
                                             </div>
 
-                                            {/* INVENTARIO COMPLETO - RESTAURADO */}
                                             <div className="space-y-6">
                                                 <div className="flex justify-between items-center">
                                                     <h3 className="text-xl font-black italic uppercase">Inventario</h3>
-                                                    <button
-                                                        onClick={() => window.storeApi.createProduct("p_" + Date.now(), { name: "Nuevo", price: 10, status: "stock" })}
-                                                        className="bg-white/5 border border-white/10 px-6 py-3 rounded-2xl text-[10px] font-black uppercase"
-                                                    >
-                                                        + Agregar Producto
-                                                    </button>
+                                                    <button onClick={() => window.storeApi.createProduct("p_"+Date.now(), {name:"Nuevo", price:10, status:"stock"})} className="bg-white/5 border border-white/10 px-6 py-3 rounded-2xl text-[10px] font-black uppercase">+ Agregar Producto</button>
                                                 </div>
                                                 <div className="grid grid-cols-1 gap-4">
                                                     {data.products.map(p => (
                                                         <div key={p.id} className="premium-glass p-5 rounded-2xl flex flex-wrap md:flex-nowrap gap-5 items-center">
                                                             <div className="relative group cursor-pointer" onClick={() => document.getElementById(`f_${p.id}`).click()}>
                                                                 <div className="w-16 h-16 rounded-xl bg-black overflow-hidden flex items-center justify-center">
-                                                                    {uploadingId === p.id ? (
-                                                                        <i className="fas fa-spinner fa-spin text-blue-500"></i>
-                                                                    ) : (
-                                                                        <img src={p.img || 'https://placehold.co/100'} className="w-full h-full object-cover" />
-                                                                    )}
+                                                                    {uploadingId === p.id ? <i className="fas fa-spinner fa-spin text-blue-500"></i> : <img src={p.img || 'https://placehold.co/100'} className="w-full h-full object-cover" />}
                                                                 </div>
-                                                                <input
-                                                                    id={`f_${p.id}`}
-                                                                    type="file"
-                                                                    className="hidden"
-                                                                    onChange={e => handleStorageUpload(e, 'product', p.id)}
-                                                                />
+                                                                <input id={`f_${p.id}`} type="file" className="hidden" onChange={e => handleStorageUpload(e, 'product', p.id)} />
                                                             </div>
                                                             <div className="flex-1 space-y-3">
-                                                                <input
-                                                                    className="input-elegant text-[11px] font-bold"
-                                                                    value={p.name}
-                                                                    onChange={e => updateProductLocal(p.id, 'name', e.target.value)}
-                                                                />
+                                                                <input className="input-elegant text-[11px] font-bold" value={p.name} onChange={e => updateProductLocal(p.id, 'name', e.target.value)} />
                                                                 <div className="flex gap-3">
-                                                                    <input
-                                                                        className="input-elegant text-[11px] w-24"
-                                                                        type="number"
-                                                                        value={p.price}
-                                                                        onChange={e => updateProductLocal(p.id, 'price', parseFloat(e.target.value))}
-                                                                    />
-                                                                    <select
-                                                                        className="input-elegant text-[10px] font-black w-32"
-                                                                        value={p.status}
-                                                                        onChange={e => updateProductLocal(p.id, 'status', e.target.value)}
-                                                                    >
+                                                                    <input className="input-elegant text-[11px] w-24" type="number" value={p.price} onChange={e => updateProductLocal(p.id, 'price', parseFloat(e.target.value))} />
+                                                                    <select className="input-elegant text-[10px] font-black w-32" value={p.status} onChange={e => updateProductLocal(p.id, 'status', e.target.value)}>
                                                                         <option value="stock">Stock</option>
                                                                         <option value="order">Bajo Pedido</option>
                                                                     </select>
                                                                 </div>
                                                             </div>
-                                                            <button onClick={() => window.storeApi.deleteProduct(p.id)} className="text-red-500 p-4">
-                                                                <i className="fas fa-trash-alt"></i>
-                                                            </button>
+                                                            <button onClick={() => window.storeApi.deleteProduct(p.id)} className="text-red-500 p-4"><i className="fas fa-trash-alt"></i></button>
                                                         </div>
                                                     ))}
                                                 </div>
@@ -1058,46 +781,27 @@ return () => { unsubS(); unsubP(); unsubV(); unsubA(); };
                     {showCart && (
                         <div className="fixed inset-0 z-[100] bg-black/80 backdrop-blur-md flex justify-end">
                             <div className="w-full max-w-sm h-full bg-[#020617] p-8 flex flex-col border-l border-white/5">
-                                <div className="flex justify-between items-center mb-10">
-                                    <h2 className="text-xl font-black italic uppercase">Carrito</h2>
-                                    <button onClick={() => setShowCart(false)} className="w-11 h-11 rounded-2xl bg-white/5 flex items-center justify-center">
-                                        <i className="fas fa-times"></i>
-                                    </button>
-                                </div>
+                                <div className="flex justify-between items-center mb-10"><h2 className="text-xl font-black italic uppercase">Carrito</h2><button onClick={() => setShowCart(false)} className="w-11 h-11 rounded-2xl bg-white/5 flex items-center justify-center"><i className="fas fa-times"></i></button></div>
                                 <div className="flex-1 overflow-y-auto space-y-5">
                                     {cart.map(item => (
                                         <div key={item.id} className="flex gap-4 items-center bg-white/5 p-4 rounded-3xl">
                                             <img src={item.img} className="w-12 h-12 rounded-xl object-cover" />
-                                            <div className="flex-1">
-                                                <p className="text-[10px] font-black uppercase">{item.name}</p>
-                                                <p className="text-xs font-bold text-blue-500">${item.price}</p>
-                                            </div>
-                                            <button onClick={() => removeFromCart(item.id)} className="text-red-500">
-                                                <i className="fas fa-trash-alt text-xs"></i>
-                                            </button>
+                                            <div className="flex-1"><p className="text-[10px] font-black uppercase">{item.name}</p><p className="text-xs font-bold text-blue-500">${item.price}</p></div>
+                                            <button onClick={() => removeFromCart(item.id)} className="text-red-500"><i className="fas fa-trash-alt text-xs"></i></button>
                                         </div>
                                     ))}
                                 </div>
-                                <button onClick={checkout} className="w-full bg-blue-600 py-5 rounded-2xl font-black uppercase text-[11px] mt-6">
-                                    Finalizar Pedido
-                                </button>
+                                <button onClick={checkout} className="w-full bg-blue-600 py-5 rounded-2xl font-black uppercase text-[11px] mt-6">Finalizar Pedido</button>
                             </div>
                         </div>
                     )}
 
                     <div className="fixed bottom-6 right-6 z-[90] flex flex-col items-end gap-4">
                         {showAI && <div className="premium-glass rounded-[2.5rem] overflow-hidden ai-chat-window fade-in mb-2"><AIChat /></div>}
-                        <button
-                            onClick={() => setShowAI(!showAI)}
-                            className="w-14 h-14 bg-blue-600 rounded-2xl shadow-2xl flex items-center justify-center text-xl text-white border border-white/20"
-                        >
-                            <i className={`fas ${showAI ? 'fa-times' : 'fa-comment-dots'}`}></i>
-                        </button>
+                        <button onClick={() => setShowAI(!showAI)} className="w-14 h-14 bg-blue-600 rounded-2xl shadow-2xl flex items-center justify-center text-xl text-white border border-white/20"><i className={`fas ${showAI ? 'fa-times' : 'fa-comment-dots'}`}></i></button>
                     </div>
 
-                    <footer className="text-center py-12 opacity-30 text-[9px] font-black uppercase tracking-[0.6em]">
-                        © 2026 {data.settings.logo}
-                    </footer>
+                    <footer className="text-center py-12 opacity-30 text-[9px] font-black uppercase tracking-[0.6em]">© 2026 {data.settings.logo}</footer>
                 </div>
             );
         };
